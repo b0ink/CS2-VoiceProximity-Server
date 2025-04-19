@@ -17,5 +17,9 @@
     "@types/node": "^22.14.1",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "mysql2": "^3.14.0",
+    "socket.io": "^4.8.1"
   }
 }
