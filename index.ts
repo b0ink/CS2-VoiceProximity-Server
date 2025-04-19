@@ -3,7 +3,7 @@ import http from 'http';
 import mysql, { Pool } from 'mysql2';
 
 const isProduction = process.env.NODE_ENV === 'production';
-const port = isProduction ? 80 : 3000;
+const port = process.env.PORT;
 const domain = process.env.DOMAIN_URL || 'localhost';
 
 const server = http.createServer();
@@ -159,7 +159,7 @@ server.listen(port, () => {
   if (!isProduction) {
     console.log(`Server running on http://localhost:${port}`);
   } else {
-    console.log(`Running server on `);
+    console.log(`Running server on ${domain}:${port}`);
   }
   getDbConnection();
 });
