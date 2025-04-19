@@ -1,6 +1,6 @@
 import { Server } from 'socket.io';
 import http from 'http';
-import mysql from 'mysql2';
+import mysql, { Pool } from 'mysql2';
 
 const isProduction = process.env.NODE_ENV === 'production';
 const port = isProduction ? 80 : 3000;
@@ -24,9 +24,10 @@ const config = {
 };
 
 const databaseFetchRate: number = Number(process.env.DATABASE_FETCH_RATE) || 50;
-let connection: any;
+let connection: Pool;
+const connectionRetryDelay = 5000; // 5000ms delay if the connection fails
 
-const setDbConnection = () => {
+const getDbConnection = () => {
   connection = mysql.createPool({
     host: config.DatabaseHost,
     user: config.DatabaseUser,
@@ -35,26 +36,33 @@ const setDbConnection = () => {
   });
 };
 
-// Query the database and send the results to connected users
-const queryDatabaseAndUpdatePlayers = () => {
-  if (!connection || connection.state == 'disconnected') {
-    console.log('not connected');
-    return;
-  }
-  connection.query('SELECT * FROM ProximityData', (err: any, results: any) => {
-    if (err) {
-      console.error('Error fetching player positions:', err);
-      return;
-    }
-
-    // console.log(results)
-
-    // Send player position data to all connected clients
-    io.emit('player-positions', results);
+const fetchProximityData = (): Promise<any> => {
+  return new Promise((resolve, reject) => {
+    connection.query('SELECT * FROM ProximityData', (err: any, results: any) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+      resolve(results);
+    });
   });
 };
 
-setInterval(queryDatabaseAndUpdatePlayers, databaseFetchRate);
+// Query the database and send the results to connected users
+const queryDatabaseAndUpdatePlayers = async () => {
+  try {
+    const results = await fetchProximityData();
+    io.emit('player-positions', results);
+    setTimeout(queryDatabaseAndUpdatePlayers, databaseFetchRate);
+  } catch (err) {
+    console.error('Error fetching player positions:', err);
+    console.log(`Attempting db connection in ${connectionRetryDelay}ms..`);
+    setTimeout(queryDatabaseAndUpdatePlayers, connectionRetryDelay);
+    return;
+  }
+};
+
+setTimeout(queryDatabaseAndUpdatePlayers, databaseFetchRate);
 
 class JoinedPlayers {
   // TODO; is there any persistence for socketIds?? when page is refreshed, new id is generated.
@@ -153,5 +161,5 @@ server.listen(port, () => {
   } else {
     console.log(`Running server on `);
   }
-  setDbConnection();
+  getDbConnection();
 });
