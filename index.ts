@@ -1,6 +1,9 @@
 import { Server } from 'socket.io';
 import http from 'http';
 import mysql, { Pool } from 'mysql2';
+import dotenv from 'dotenv';
+dotenv.config();
+
 let TurnServer = require('node-turn');
 
 const isProduction = process.env.NODE_ENV === 'production';

@@ -19,7 +19,9 @@
     "typescript": "^5.8.3"
   },
   "dependencies": {
+    "dotenv": "^16.5.0",
     "mysql2": "^3.14.0",
+    "node-turn": "^0.0.6",
     "socket.io": "^4.8.1"
   }
 }
