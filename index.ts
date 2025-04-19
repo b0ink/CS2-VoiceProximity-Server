@@ -1,12 +1,29 @@
 import { Server } from 'socket.io';
 import http from 'http';
 import mysql, { Pool } from 'mysql2';
+let TurnServer = require('node-turn');
 
 const isProduction = process.env.NODE_ENV === 'production';
 const port = Number(process.env.PORT) || 3000;
 const domain = process.env.DOMAIN_URL || 'localhost';
 
 const server = http.createServer();
+
+let turnServer = new TurnServer({
+  listeningIps: ['0.0.0.0'],
+  relayIps: [],
+  externalIps: null,
+  minPort: 49152,
+  maxPort: 65535,
+  listeningPort: 3478,
+  authMech: 'long-term',
+  debugLevel: 'INFO',
+  realm: 'cs2voiceproximity',
+});
+
+turnServer.addUser('openrelayproject', 'openrelayproject');
+
+turnServer.start();
 
 const io = new Server(server, {
   cors: {
