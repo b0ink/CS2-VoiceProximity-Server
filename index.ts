@@ -33,7 +33,7 @@ if (!isProduction) {
   turnServer.externalIps = ['127.0.0.1'];
 }
 
-turnServer.addUser('openrelayproject', 'openrelayproject');
+turnServer.addUser('96cfcb96272c895a9dbf7f90', 'YN9b9HCsFuc07FpF');
 
 turnServer.start();
 
