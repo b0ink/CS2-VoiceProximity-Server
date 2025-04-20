@@ -12,10 +12,13 @@ const domain = process.env.DOMAIN_URL || 'localhost';
 
 const server = http.createServer();
 
+const relayIps = process.env.RELAY_IPS?.split(',');
+const externalIps = process.env.EXTERNAL_IPS?.split(',');
+
 let turnServer = new TurnServer({
   listeningIps: ['0.0.0.0'],
-  relayIps: [],
-  externalIps: null,
+  relayIps: relayIps || [],
+  externalIps: externalIps || null,
   minPort: 49152,
   maxPort: 65535,
   listeningPort: 3478,
@@ -23,6 +26,12 @@ let turnServer = new TurnServer({
   debugLevel: 'INFO',
   realm: 'cs2voiceproximity',
 });
+
+if (!isProduction) {
+  turnServer.listeningIps = ['127.0.0.1'];
+  turnServer.relayIps = ['127.0.0.1'];
+  turnServer.externalIps = ['127.0.0.1'];
+}
 
 turnServer.addUser('openrelayproject', 'openrelayproject');
 
