@@ -100,9 +100,9 @@ class JoinedPlayers {
 }
 
 class RoomData {
-  roomCode_ = null;
-  maxPlayers_ = 10;
-  joinedPlayers = [];
+  roomCode_?: string = undefined;
+  maxPlayers_: number = 10;
+  joinedPlayers: JoinedPlayers[] = [];
 
   constructor(roomCode: any, maxPlayers?: any) {
     this.roomCode_ = roomCode;
@@ -110,7 +110,7 @@ class RoomData {
   }
 }
 
-const rooms: any[] = [new RoomData('123')];
+const rooms: RoomData[] = [new RoomData('123')];
 
 // interface JoinRoomData{
 //   roomCode?: String;
@@ -130,12 +130,7 @@ io.on('connection', (socket: any) => {
     console.log(`joinRoom called with ${roomCode}, ${steamId}`);
     if (!roomCode) return; // If no room is provided, ignore the join attempt.
 
-    let roomExists = false;
-    for (const roomData of rooms) {
-      if (roomData.roomCode_ === roomCode) {
-        roomExists = true;
-      }
-    }
+    const roomExists = rooms.some((room) => room.roomCode_ === roomCode);
 
     if (!roomExists) {
       // TODO: "reject" the attempt so that the user is notified this room doesnt exist
