@@ -172,7 +172,11 @@ io.on('connection', (socket: any) => {
     // Handle user disconnection
     socket.on('disconnect', () => {
       //TODO: remove them from the joinedPLayers array
-      console.log(`${socket.id} disconnected`);
+      console.log(`${socket.id} disconnected. Cleaning up..`);
+      // Evict player object
+      for (const room of rooms) {
+        room.joinedPlayers = room.joinedPlayers.filter((player) => player.socketId !== socket.id);
+      }
       socket.to(roomCode).emit('user-left', socket.id);
       socket.leave(roomCode); // Remove user from the room when they disconnect
     });
