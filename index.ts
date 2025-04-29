@@ -39,7 +39,8 @@ turnServer.start();
 
 const io = new Server(server, {
   cors: {
-    origin: isProduction ? domain : '*', // Replace with your frontend domain in production
+    // origin: isProduction ? domain : '*', // Replace with your frontend domain in production
+    origin: '*', // Replace with your frontend domain in production
     methods: ['GET', 'POST'],
   },
 });
