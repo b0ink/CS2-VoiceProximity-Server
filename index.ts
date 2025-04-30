@@ -64,6 +64,10 @@ const io = new Server(server, {
   },
 });
 
+const dbPools: { [roomId: string]: Pool } = {};
+
+const testDefaultRoom = '123';
+
 // TODO: pull db information from the room host
 const config = {
   DatabaseHost: process.env.DATABASE_HOST,
@@ -77,7 +81,7 @@ let connection: Pool;
 const connectionRetryDelay = 5000; // 5000ms delay if the connection fails
 
 const getDbConnection = () => {
-  connection = mysql.createPool({
+  dbPools[testDefaultRoom] = mysql.createPool({
     host: config.DatabaseHost,
     user: config.DatabaseUser,
     password: config.DatabasePassword,
@@ -87,7 +91,7 @@ const getDbConnection = () => {
 
 const fetchProximityData = (): Promise<any> => {
   return new Promise((resolve, reject) => {
-    connection.query('SELECT * FROM ProximityData', (err: any, results: any) => {
+    dbPools[testDefaultRoom].query('SELECT * FROM ProximityData', (err: any, results: any) => {
       if (err) {
         reject(err);
         return;
