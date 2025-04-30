@@ -15,7 +15,8 @@ const server = http.createServer((req, res) => {
     const url = new URL(req.url, `http://${req.headers.host}`);
     const params = url.searchParams.toString();
     const redirectUrl = `${process.env.REDIRECT_URL_PROTOCOL}?${params}`;
-
+    console.log('Authenticating steam id via /verify-steam ...');
+    console.log(`Redirecting to ${redirectUrl}`);
     res.writeHead(200, { 'Content-Type': 'text/html' });
     res.end(`
       <html>
