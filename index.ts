@@ -174,7 +174,7 @@ io.on('connection', (socket: any) => {
       `calling user-joined with ${socket.id} ${JSON.stringify({
         steamId: steamId,
         clientId: steamId,
-      })}`
+      })}`,
     );
     socket.to(roomCode).emit('user-joined', socket.id, { steamId: steamId, clientId: steamId });
 
