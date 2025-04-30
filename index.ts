@@ -101,7 +101,7 @@ const fetchProximityData = (): Promise<any> => {
 const queryDatabaseAndUpdatePlayers = async () => {
   try {
     const results = await fetchProximityData();
-    io.emit('player-positions', results);
+    io.volatile.emit('player-positions', results);
     setTimeout(queryDatabaseAndUpdatePlayers, databaseFetchRate);
   } catch (err) {
     console.error('Error fetching player positions:', err);
