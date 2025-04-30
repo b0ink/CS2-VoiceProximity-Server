@@ -10,7 +10,25 @@ const isProduction = process.env.NODE_ENV === 'production';
 const port = Number(process.env.PORT) || 3000;
 const domain = process.env.DOMAIN_URL || 'localhost';
 
-const server = http.createServer();
+const server = http.createServer((req, res) => {
+  if (req.method === 'GET' && req.url?.startsWith('/verify-steam')) {
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const params = url.searchParams.toString();
+    const redirectUrl = `${process.env.REDIRECT_URL_PROTOCOL}?${params}`;
+
+    res.writeHead(200, { 'Content-Type': 'text/html' });
+    res.end(`
+      <html>
+        <body>
+        <p>You've signed in. You can now close this page.</p>
+        <script>
+        window.location.href = "${redirectUrl}";
+        </script>
+        </body>
+      </html>
+    `);
+  }
+});
 
 const relayIps = process.env.RELAY_IPS?.split(',');
 const externalIps = process.env.EXTERNAL_IPS?.split(',');
