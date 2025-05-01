@@ -245,7 +245,8 @@ io.on('connection', (socket: any) => {
         if (err instanceof jwt.TokenExpiredError) {
           return callback({ success: false, message: 'Token has expired' });
         } else {
-          return callback({ success: false, message: err });
+          console.error(err);
+          return callback({ success: false, message: 'Invalid token' });
         }
       }
 
