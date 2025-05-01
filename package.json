@@ -23,7 +23,9 @@
     "typescript": "^5.8.3"
   },
   "dependencies": {
+    "@types/jsonwebtoken": "^9.0.9",
     "dotenv": "^16.5.0",
+    "jsonwebtoken": "^9.0.2",
     "mysql2": "^3.14.0",
     "node-turn": "^0.0.6",
     "socket.io": "^4.8.1"
