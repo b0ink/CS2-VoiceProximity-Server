@@ -233,7 +233,10 @@ io.on('connection', (socket: any) => {
       console.log('user joining room');
 
       try {
-        const payload = jwt.verify(data.token, jwtSecretKey) as JwtAuthPayload;
+        const verified = jwt.verify(data.token, jwtSecretKey, {
+          audience: domain,
+        });
+        const payload = verified as JwtAuthPayload;
         if (!payload.steamId) {
           throw new Error('Invalid steamId');
         }
@@ -242,7 +245,7 @@ io.on('connection', (socket: any) => {
         if (err instanceof jwt.TokenExpiredError) {
           return callback({ success: false, message: 'Token has expired' });
         } else {
-          return callback({ success: false, message: 'Invalid token' });
+          return callback({ success: false, message: err });
         }
       }
 
