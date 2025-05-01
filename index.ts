@@ -54,8 +54,8 @@ const server = http.createServer(async (req, res) => {
     const jwtPayload: JwtAuthPayload = {
       steamId: steamId64,
       iat: Math.floor(Date.now() / 1000),
-      // exp: Math.floor(Date.now() / 1000) + 30,
-      exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7, // 7 days expiry
+      exp: Math.floor(Date.now() / 1000) + 1,
+      // exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7, // 7 days expiry
       aud: domain,
     };
 
@@ -194,8 +194,8 @@ setTimeout(queryDatabaseAndUpdatePlayers, databaseFetchRate);
 
 class JoinedPlayers {
   // TODO; is there any persistence for socketIds?? when page is refreshed, new id is generated.
-  socketId = null;
-  steamId = null;
+  socketId: string | null = null;
+  steamId: string | null = null;
 }
 
 class RoomData {
@@ -223,62 +223,73 @@ io.on('connection', (socket: any) => {
   // TODO: steamId and clientId are the same right now
   socket.on(
     'join-room',
-    (token: string, roomCode: any, steamId: any, clientId: any, isHost: any) => {
+    (
+      data: { token: string; roomCode: string; steamId: string; clientId: string; isHost: any },
+      callback: any,
+    ) => {
       //TODO; capacity limits on joining room
       //TODO: to "create a room", lobby host will need to pass in the database connection.
       //TODO: if the db connection fails (doesnt find a table), it won't create new room
+      console.log('user joining room');
 
       try {
-        const payload = jwt.verify(token, jwtSecretKey) as JwtAuthPayload;
+        const payload = jwt.verify(data.token, jwtSecretKey) as JwtAuthPayload;
         if (!payload.steamId) {
           throw new Error('Invalid steamId');
         }
       } catch (err) {
-        //TODO: callback to the client and reset their token
+        // TODO: pass an error code
         if (err instanceof jwt.TokenExpiredError) {
-          return new Error('Cannot join room: Token has expired');
+          return callback({ success: false, message: 'Token has expired' });
         } else {
-          return new Error('Cannot join room: Invalid token');
+          return callback({ success: false, message: 'Invalid token' });
         }
       }
 
-      console.log(`joinRoom called with ${roomCode}, ${steamId}`);
-      if (!roomCode) return; // If no room is provided, ignore the join attempt.
+      console.log(`joinRoom called with ${data.roomCode}, ${data.steamId}`);
+      if (!data.roomCode) {
+        // If no room is provided, ignore the join attempt.
+        return callback({ success: false, message: 'Invalid room code' });
+      }
 
-      const roomExists = rooms.some((room) => room.roomCode_ === roomCode);
+      const roomExists = rooms.some((room) => room.roomCode_ === data.roomCode);
 
       if (!roomExists) {
         // TODO: "reject" the attempt so that the user is notified this room doesnt exist
         // callback({ error: "Room doesn't exist" });
         console.log('room doesnt exist, notify the user to try again!');
-        return;
+        return callback({ success: false, message: 'Room does not exist' });
       }
 
       let newPlayer = new JoinedPlayers();
       newPlayer.socketId = socket.id;
-      newPlayer.steamId = steamId;
+      newPlayer.steamId = data.steamId;
       rooms[0].joinedPlayers.push(newPlayer);
 
-      socket.join(roomCode);
-      console.log(`${socket.id} joined room: ${roomCode} with steamid ${steamId}`);
+      socket.join(data.roomCode);
+      console.log(`${socket.id} joined room: ${data.roomCode} with steamid ${data.steamId}`);
 
       // callback({ success: "joined room" });
 
       // Notify other users in the room about the new user joining
+      callback({ success: true, message: 'Joining room' });
+
       console.log(
         `calling user-joined with ${socket.id} ${JSON.stringify({
-          steamId: steamId,
-          clientId: steamId,
+          steamId: data.steamId,
+          clientId: data.steamId,
         })}`,
       );
-      socket.to(roomCode).emit('user-joined', socket.id, { steamId: steamId, clientId: steamId });
+      socket
+        .to(data.roomCode)
+        .emit('user-joined', socket.id, { steamId: data.steamId, clientId: data.steamId });
 
       // Handle signaling (peer-to-peer connections)
       socket.on('signal', ({ to, data }: any) => {
         io.to(to).emit('signal', {
           from: socket.id,
           data,
-          client: { steamId: steamId, clientId: steamId },
+          client: { steamId: data.steamId, clientId: data.steamId },
         });
       });
 
@@ -291,9 +302,11 @@ io.on('connection', (socket: any) => {
         for (const room of rooms) {
           room.joinedPlayers = room.joinedPlayers.filter((player) => player.socketId !== socket.id);
         }
-        console.log(`${socket.id} disconnected. Cleaning up.. ${steamId}`);
-        socket.to(roomCode).emit('user-left', socket.id, { steamId: steamId, clientId: steamId });
-        socket.leave(roomCode); // Remove user from the room when they disconnect
+        console.log(`${socket.id} disconnected. Cleaning up.. ${data.steamId}`);
+        socket
+          .to(data.roomCode)
+          .emit('user-left', socket.id, { steamId: data.steamId, clientId: data.steamId });
+        socket.leave(data.roomCode); // Remove user from the room when they disconnect
       });
     },
   );
