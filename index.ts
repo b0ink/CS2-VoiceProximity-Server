@@ -316,7 +316,7 @@ io.on('connection', (socket: any) => {
   );
 });
 
-server.listen(port, '0.0.0.0', () => {
+server.listen(port, () => {
   if (!isProduction) {
     console.log(`Server running on http://localhost:${port}`);
   } else {
