@@ -54,8 +54,8 @@ const server = http.createServer(async (req, res) => {
     const jwtPayload: JwtAuthPayload = {
       steamId: steamId64,
       iat: Math.floor(Date.now() / 1000),
-      exp: Math.floor(Date.now() / 1000) + 1,
-      // exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7, // 7 days expiry
+      // exp: Math.floor(Date.now() / 1000) + 1,
+      exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7, // 7 days expiry
       aud: domain,
     };
 
