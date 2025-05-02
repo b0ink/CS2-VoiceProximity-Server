@@ -4,10 +4,11 @@ import mysql, { Pool } from 'mysql2';
 import dotenv from 'dotenv';
 import { JwtAuthPayload, SteamOpenIDParams } from './types';
 import jwt from 'jsonwebtoken';
+import TurnServer from 'node-turn';
 
 dotenv.config();
 
-let TurnServer = require('node-turn');
+// let TurnServer :TurnServer = require('node-turn');
 
 const isProduction = process.env.NODE_ENV === 'production';
 const port = Number(process.env.PORT) || 3000;
@@ -107,10 +108,18 @@ async function validateSteamAuth(payload: SteamOpenIDParams): Promise<boolean> {
 const relayIps = process.env.RELAY_IPS?.split(',');
 const externalIps = process.env.EXTERNAL_IPS?.split(',');
 
+if (!relayIps || relayIps?.length === 0) {
+  throw new Error('Invalid relay ips list');
+}
+
+if (!externalIps || externalIps?.length === 0) {
+  throw new Error('Invalid external ip list');
+}
+
 let turnServer = new TurnServer({
-  listeningIps: ['0.0.0.0'],
-  relayIps: relayIps || [],
-  externalIps: externalIps || null,
+  listeningIps: !isProduction ? ['127.0.0.1'] : ['0.0.0.0'],
+  relayIps: !isProduction ? ['127.0.0.1'] : relayIps || [],
+  externalIps: !isProduction ? '127.0.0.1' : externalIps[0] || null,
   minPort: 49152,
   maxPort: 65535,
   listeningPort: 3478,
@@ -118,12 +127,6 @@ let turnServer = new TurnServer({
   debugLevel: 'INFO',
   realm: 'cs2voiceproximity',
 });
-
-if (!isProduction) {
-  turnServer.listeningIps = ['127.0.0.1'];
-  turnServer.relayIps = ['127.0.0.1'];
-  turnServer.externalIps = ['127.0.0.1'];
-}
 
 turnServer.addUser('96cfcb96272c895a9dbf7f90', 'YN9b9HCsFuc07FpF');
 
