@@ -5,8 +5,15 @@ import dotenv from 'dotenv';
 import { JwtAuthPayload, SteamOpenIDParams } from './types';
 import jwt from 'jsonwebtoken';
 import TurnServer from 'node-turn';
+import path from 'path';
 
-dotenv.config({ path: __dirname + '/.env' });
+const result = dotenv.config({ path: path.resolve(__dirname, '.env') });
+
+if (result.error) {
+  console.error('Failed to load .env file:', result.error);
+} else {
+  console.log('Loaded .env variables:', result.parsed);
+}
 
 // let TurnServer :TurnServer = require('node-turn');
 
