@@ -106,20 +106,29 @@ async function validateSteamAuth(payload: SteamOpenIDParams): Promise<boolean> {
 }
 
 const relayIps = process.env.RELAY_IPS?.split(',');
-const externalIps = process.env.EXTERNAL_IPS?.split(',');
+const externalIp = process.env.EXTERNAL_IP;
+const listeningIps = process.env.LISTENING_IPS?.split(',');
 
 if (!relayIps || relayIps?.length === 0) {
   throw new Error('Invalid relay ips list');
 }
 
-if (!externalIps || externalIps?.length === 0) {
-  throw new Error('Invalid external ip list');
+if (!listeningIps || listeningIps?.length === 0) {
+  throw new Error('Invalid relay ips list');
 }
 
+if (!externalIp) {
+  throw new Error('Invalid external ip');
+}
+
+console.log(relayIps);
+console.log(listeningIps);
+console.log(externalIp);
+
 let turnServer = new TurnServer({
-  listeningIps: !isProduction ? ['127.0.0.1'] : ['0.0.0.0'],
-  relayIps: !isProduction ? ['127.0.0.1'] : relayIps || [],
-  externalIps: !isProduction ? '127.0.0.1' : externalIps[0] || null,
+  listeningIps: listeningIps,
+  relayIps: relayIps || [],
+  externalIps: externalIp,
   minPort: 49152,
   maxPort: 65535,
   listeningPort: 3478,
