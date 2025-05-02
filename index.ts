@@ -124,7 +124,7 @@ let turnServer = new TurnServer({
   maxPort: 65535,
   listeningPort: 3478,
   authMech: 'long-term',
-  debugLevel: 'INFO',
+  debugLevel: !isProduction ? 'ALL' : 'INFO',
   realm: 'cs2voiceproximity',
 });
 
