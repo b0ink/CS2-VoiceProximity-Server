@@ -21,6 +21,17 @@ if (jwtSecretKey === null) {
 }
 
 const server = http.createServer(async (req, res) => {
+  if (req.method === 'GET' && req.url === '/') {
+    res.writeHead(200, { 'Content-Type': 'text/html' });
+    res.end(`
+      <html>
+        <body>
+        <p>Hello world!</p>
+        </body>
+      </html>
+    `);
+  }
+
   if (req.method === 'GET' && req.url?.startsWith('/verify-steam')) {
     const url = new URL(req.url, `http://${req.headers.host}`);
 
