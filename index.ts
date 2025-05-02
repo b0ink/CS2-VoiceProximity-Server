@@ -6,7 +6,7 @@ import { JwtAuthPayload, SteamOpenIDParams } from './types';
 import jwt from 'jsonwebtoken';
 import TurnServer from 'node-turn';
 
-dotenv.config();
+dotenv.config({ path: '../.env' });
 
 // let TurnServer :TurnServer = require('node-turn');
 
