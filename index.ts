@@ -9,12 +9,6 @@ import path from 'path';
 
 const result = dotenv.config({ path: path.resolve(__dirname, '.env') });
 
-if (result.error) {
-  console.error('Failed to load .env file:', result.error);
-} else {
-  console.log('Loaded .env variables:', result.parsed);
-}
-
 // let TurnServer :TurnServer = require('node-turn');
 
 const isProduction = process.env.NODE_ENV === 'production';
