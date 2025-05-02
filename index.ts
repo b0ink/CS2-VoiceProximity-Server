@@ -204,7 +204,7 @@ const queryDatabaseAndUpdatePlayers = async () => {
     const results = await fetchProximityData();
     // TODO: we could hash the results per room and only emit if the data has changed
     // TODO: we could also filter out players that havent changed (standing still)
-    io.volatile.emit('player-positions', results);
+    io.volatile.to('123').emit('player-positions', results);
     setTimeout(queryDatabaseAndUpdatePlayers, databaseFetchRate);
   } catch (err) {
     console.error('Error fetching player positions:', err);
