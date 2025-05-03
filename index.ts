@@ -4,8 +4,11 @@ import mysql, { Pool } from 'mysql2';
 import dotenv from 'dotenv';
 import { JwtAuthPayload, SteamOpenIDParams } from './types';
 import jwt from 'jsonwebtoken';
-import TurnServer, { TurnDebugLevel } from 'node-turn';
+// import TurnServer, { TurnDebugLevel } from 'node-turn';
 import path from 'path';
+import { TurnDebugLevel } from 'node-turn';
+
+const TurnServer = require('node-turn');
 
 const result = dotenv.config({ path: path.resolve(__dirname, '.env') });
 
@@ -152,6 +155,9 @@ let turnServer = new TurnServer({
   debugLevel: turnDebugLevel,
   realm: 'cs2voiceproximity',
   defaultAllocatetLifetime: 3600,
+  defaultLifetime: 3600,
+  maxAllocateTimeout: 7200,
+  maxAllocateLifetime: 7200, // 2 hours
 });
 
 turnServer.addUser('96cfcb96272c895a9dbf7f90', 'YN9b9HCsFuc07FpF');
