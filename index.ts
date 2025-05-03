@@ -1,10 +1,10 @@
-import { Server } from 'socket.io';
-import http from 'http';
-import mysql, { Pool } from 'mysql2';
 import dotenv from 'dotenv';
-import { JwtAuthPayload, SteamOpenIDParams } from './types';
+import http from 'http';
 import jwt from 'jsonwebtoken';
+import mysql, { Pool } from 'mysql2';
 import path from 'path';
+import { Server } from 'socket.io';
+import { JwtAuthPayload, SteamOpenIDParams } from './types';
 
 const result = dotenv.config({ path: path.resolve(__dirname, '.env') });
 
