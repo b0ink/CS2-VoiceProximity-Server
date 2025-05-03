@@ -154,11 +154,12 @@ let turnServer = new TurnServer({
   authMech: 'long-term',
   debugLevel: turnDebugLevel,
   realm: 'cs2voiceproximity',
-  defaultAllocatetLifetime: 3600,
-  defaultLifetime: 3600,
+  // defaultAllocatetLifetime: 3600,
   maxAllocateTimeout: 7200,
-  maxAllocateLifetime: 7200, // 2 hours
+  // maxAllocateLifetime: 7200, // 2 hours
 });
+
+turnServer.defaultLifetime = 3600;
 
 turnServer.addUser('96cfcb96272c895a9dbf7f90', 'YN9b9HCsFuc07FpF');
 
