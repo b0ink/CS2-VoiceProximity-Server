@@ -17,7 +17,6 @@
   "devDependencies": {
     "@types/express": "^5.0.1",
     "@types/node": "^22.14.1",
-    "@types/node-turn": "^0.0.5",
     "eslint": "^9.25.1",
     "prettier": "^3.5.3",
     "ts-node": "^10.9.2",
@@ -28,7 +27,6 @@
     "dotenv": "^16.5.0",
     "jsonwebtoken": "^9.0.2",
     "mysql2": "^3.14.0",
-    "node-turn": "^0.0.6",
     "socket.io": "^4.8.1"
   }
 }

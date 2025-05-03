@@ -4,15 +4,9 @@ import mysql, { Pool } from 'mysql2';
 import dotenv from 'dotenv';
 import { JwtAuthPayload, SteamOpenIDParams } from './types';
 import jwt from 'jsonwebtoken';
-// import TurnServer, { TurnDebugLevel } from 'node-turn';
 import path from 'path';
-// import { TurnDebugLevel } from 'node-turn';
-
-// const TurnServer = require('node-turn');
 
 const result = dotenv.config({ path: path.resolve(__dirname, '.env') });
-
-// let TurnServer :TurnServer = require('node-turn');
 
 const isProduction = process.env.NODE_ENV === 'production';
 const port = Number(process.env.PORT) || 3000;
@@ -119,51 +113,6 @@ async function validateSteamAuth(payload: SteamOpenIDParams): Promise<boolean> {
   // console.log(`Validating steam auth response:\n---\n${text}\n---`);
   return text.includes('is_valid:true');
 }
-
-const relayIps = process.env.RELAY_IPS?.split(',');
-const externalIp = process.env.EXTERNAL_IP;
-const listeningIps = process.env.LISTENING_IPS?.split(',');
-
-if (!relayIps || relayIps?.length === 0) {
-  throw new Error('Invalid relay ips list');
-}
-
-if (!listeningIps || listeningIps?.length === 0) {
-  throw new Error('Invalid relay ips list');
-}
-
-if (!externalIp) {
-  throw new Error('Invalid external ip');
-}
-
-console.log(relayIps);
-console.log(listeningIps);
-console.log(externalIp);
-
-// const turnDebugLevel: TurnDebugLevel = process.env.TURN_DEBUG_LEVEL
-//   ? (process.env.TURN_DEBUG_LEVEL as TurnDebugLevel)
-//   : 'INFO';
-
-// let turnServer = new TurnServer({
-//   listeningIps: listeningIps,
-//   relayIps: relayIps || [],
-//   externalIps: externalIp,
-//   minPort: 49152,
-//   maxPort: 65535,
-//   listeningPort: 3478,
-//   authMech: 'long-term',
-//   debugLevel: turnDebugLevel,
-//   realm: 'cs2voiceproximity',
-//   // defaultAllocatetLifetime: 3600,
-//   maxAllocateTimeout: 7200,
-//   // maxAllocateLifetime: 7200, // 2 hours
-// });
-
-// turnServer.defaultLifetime = 3600;
-
-// turnServer.addUser('96cfcb96272c895a9dbf7f90', 'YN9b9HCsFuc07FpF');
-
-// turnServer.start();
 
 const io = new Server(server, {
   cors: {
