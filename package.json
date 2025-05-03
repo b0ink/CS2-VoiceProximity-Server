@@ -17,6 +17,7 @@
   "devDependencies": {
     "@types/express": "^5.0.1",
     "@types/node": "^22.14.1",
+    "@types/node-turn": "^0.0.5",
     "eslint": "^9.25.1",
     "prettier": "^3.5.3",
     "ts-node": "^10.9.2",

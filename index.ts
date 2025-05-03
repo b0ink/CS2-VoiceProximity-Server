@@ -4,7 +4,7 @@ import mysql, { Pool } from 'mysql2';
 import dotenv from 'dotenv';
 import { JwtAuthPayload, SteamOpenIDParams } from './types';
 import jwt from 'jsonwebtoken';
-import TurnServer, { TurnDebugLevel } from './node-turn-types';
+import TurnServer, { TurnDebugLevel } from 'node-turn';
 import path from 'path';
 
 const result = dotenv.config({ path: path.resolve(__dirname, '.env') });
@@ -151,7 +151,7 @@ let turnServer = new TurnServer({
   authMech: 'long-term',
   debugLevel: turnDebugLevel,
   realm: 'cs2voiceproximity',
-  defaultAllocateLifetime: 3600,
+  defaultAllocatetLifetime: 3600,
 });
 
 turnServer.addUser('96cfcb96272c895a9dbf7f90', 'YN9b9HCsFuc07FpF');
