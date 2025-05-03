@@ -4,7 +4,7 @@ import mysql, { Pool } from 'mysql2';
 import dotenv from 'dotenv';
 import { JwtAuthPayload, SteamOpenIDParams } from './types';
 import jwt from 'jsonwebtoken';
-import TurnServer from 'node-turn';
+import TurnServer, { TurnDebugLevel } from 'node-turn';
 import path from 'path';
 
 const result = dotenv.config({ path: path.resolve(__dirname, '.env') });
@@ -137,6 +137,10 @@ console.log(relayIps);
 console.log(listeningIps);
 console.log(externalIp);
 
+const turnDebugLevel: TurnDebugLevel = process.env.TURN_DEBUG_LEVEL
+  ? (process.env.TURN_DEBUG_LEVEL as TurnDebugLevel)
+  : 'INFO';
+
 let turnServer = new TurnServer({
   listeningIps: listeningIps,
   relayIps: relayIps || [],
@@ -145,7 +149,7 @@ let turnServer = new TurnServer({
   maxPort: 65535,
   listeningPort: 3478,
   authMech: 'long-term',
-  debugLevel: !isProduction ? 'ALL' : 'INFO',
+  debugLevel: turnDebugLevel,
   realm: 'cs2voiceproximity',
 });
 
