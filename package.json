@@ -24,7 +24,6 @@
   },
   "dependencies": {
     "@types/jsonwebtoken": "^9.0.9",
-    "@types/node-turn": "^0.0.5",
     "dotenv": "^16.5.0",
     "jsonwebtoken": "^9.0.2",
     "mysql2": "^3.14.0",
