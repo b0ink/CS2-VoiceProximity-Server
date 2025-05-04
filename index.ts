@@ -6,6 +6,8 @@ import path from 'path';
 import { Server } from 'socket.io';
 import { JwtAuthPayload, SteamOpenIDParams } from './types';
 
+// test
+
 const result = dotenv.config({ path: path.resolve(__dirname, '.env') });
 
 const isProduction = process.env.NODE_ENV === 'production';
