@@ -1,12 +1,12 @@
+import crypto from 'crypto';
 import dotenv from 'dotenv';
+import express, { Request, Response } from 'express';
 import http from 'http';
 import jwt from 'jsonwebtoken';
 import mysql, { Pool, QueryError, QueryResult } from 'mysql2';
 import path from 'path';
 import { Server, Socket } from 'socket.io';
 import { JwtAuthPayload, SteamOpenIDParams } from './types';
-import express, { Request, Response } from 'express';
-import crypto from 'crypto';
 
 dotenv.config({ path: path.resolve(__dirname, '.env') });
 
