@@ -1,9 +1,9 @@
 import dotenv from 'dotenv';
 import http from 'http';
 import jwt from 'jsonwebtoken';
-import mysql, { Pool } from 'mysql2';
+import mysql, { Pool, QueryError, QueryResult } from 'mysql2';
 import path from 'path';
-import { Server } from 'socket.io';
+import { Server, Socket } from 'socket.io';
 import { JwtAuthPayload, SteamOpenIDParams } from './types';
 import express, { Request, Response } from 'express';
 import crypto from 'crypto';
@@ -46,11 +46,11 @@ app.set('views', path.join(__dirname, '../src/views'));
 
 const server = http.createServer(app);
 
-app.get('/', async (req, res) => {
+app.get('/', async (req: Request, res: Response) => {
   return res.render('index');
 });
 
-app.get('/get-turn-credential', async (req: Request, res: any) => {
+app.get('/get-turn-credential', async (req: Request, res: Response) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
 
@@ -58,27 +58,28 @@ app.get('/get-turn-credential', async (req: Request, res: any) => {
   // return res.status(200).json({ message: 'Success', data: credentials });
 
   if (!token) {
-    return res.status(401).json({ message: 'Unauthorised' });
+    res.status(401).json({ message: 'Unauthorised' });
+    return;
   }
-
   try {
     const verified = jwt.verify(token, jwtSecretKey, {
       audience: domain,
     });
-
     const payload = verified as JwtAuthPayload;
     if (payload.steamId) {
       const credentials = getTURNCredentials(payload.steamId);
-      return res.status(200).json({ message: 'Success', data: credentials });
+      res.status(200).json({ message: 'Success', data: credentials });
+      return;
     }
   } catch (e) {
-    return res.status(401).json({ message: 'Unauthorised' });
+    console.error(e);
+    res.status(401).json({ message: 'Unauthorised' });
+    return;
   }
-
-  return res.status(500).json({ message: 'Unauthorised' });
+  res.status(500).json({ message: 'Unauthorised' });
 });
 
-app.get('/verify-steam', async (req, res) => {
+app.get('/verify-steam', async (req: Request, res: Response) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
 
   const params: SteamOpenIDParams = {
@@ -160,7 +161,7 @@ const config = {
 };
 
 const databaseFetchRate: number = Number(process.env.DATABASE_FETCH_RATE) || 50;
-let connection: Pool;
+// let connection: Pool;
 const connectionRetryDelay = 5000; // 5000ms delay if the connection fails
 
 const getDbConnection = () => {
@@ -172,15 +173,18 @@ const getDbConnection = () => {
   });
 };
 
-const fetchProximityData = (): Promise<any> => {
+const fetchProximityData = () => {
   return new Promise((resolve, reject) => {
-    dbPools[testDefaultRoom].query('SELECT * FROM ProximityData', (err: any, results: any) => {
-      if (err) {
-        reject(err);
-        return;
-      }
-      resolve(results);
-    });
+    dbPools[testDefaultRoom].query(
+      'SELECT * FROM ProximityData',
+      (err: QueryError, results: QueryResult) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+        resolve(results);
+      },
+    );
   });
 };
 
@@ -210,10 +214,10 @@ class JoinedPlayers {
 
 class RoomData {
   roomCode_?: string = undefined;
-  maxPlayers_: number = 10;
+  maxPlayers_?: number = 10;
   joinedPlayers: JoinedPlayers[] = [];
 
-  constructor(roomCode: any, maxPlayers?: any) {
+  constructor(roomCode: string, maxPlayers?: number) {
     this.roomCode_ = roomCode;
     this.maxPlayers_ = maxPlayers;
   }
@@ -226,104 +230,108 @@ const rooms: RoomData[] = [new RoomData('123')];
 //   steamId?: String;
 // }
 
-io.on('connection', (socket: any) => {
+interface JoinRoomData {
+  token: string;
+  roomCode: string;
+  steamId: string;
+  clientId: string;
+  isHost: boolean;
+}
+
+type JoinRoomCallback = (response: { success: boolean; message: string }) => void;
+
+io.on('connection', (socket: Socket) => {
   console.log('New user connected: ', socket.id);
 
   // Handle joining a room
   // TODO: steamId and clientId are the same right now
-  socket.on(
-    'join-room',
-    (
-      data: { token: string; roomCode: string; steamId: string; clientId: string; isHost: any },
-      callback: any,
-    ) => {
-      //TODO; capacity limits on joining room
-      //TODO: to "create a room", lobby host will need to pass in the database connection.
-      //TODO: if the db connection fails (doesnt find a table), it won't create new room
-      console.log('user joining room');
+  socket.on('join-room', (data: JoinRoomData, callback: JoinRoomCallback) => {
+    //TODO; capacity limits on joining room
+    //TODO: to "create a room", lobby host will need to pass in the database connection.
+    //TODO: if the db connection fails (doesnt find a table), it won't create new room
+    console.log('user joining room');
 
-      try {
-        const verified = jwt.verify(data.token, jwtSecretKey, {
-          audience: domain,
-        });
-        const payload = verified as JwtAuthPayload;
-        if (!payload.steamId) {
-          throw new Error('Invalid steamId');
-        }
-      } catch (err) {
-        // TODO: pass an error code
-        if (err instanceof jwt.TokenExpiredError) {
-          return callback({ success: false, message: 'Token has expired' });
-        } else {
-          console.error(err);
-          return callback({ success: false, message: 'Invalid token' });
-        }
+    try {
+      const verified = jwt.verify(data.token, jwtSecretKey, {
+        audience: domain,
+      });
+      const payload = verified as JwtAuthPayload;
+      if (!payload.steamId) {
+        throw new Error('Invalid steamId');
       }
-
-      console.log(`joinRoom called with ${data.roomCode}, ${data.steamId}`);
-      if (!data.roomCode) {
-        // If no room is provided, ignore the join attempt.
-        return callback({ success: false, message: 'Invalid room code' });
+    } catch (err) {
+      // TODO: pass an error code
+      if (err instanceof jwt.TokenExpiredError) {
+        return callback({ success: false, message: 'Token has expired' });
+      } else {
+        console.error(err);
+        return callback({ success: false, message: 'Invalid token' });
       }
+    }
 
-      const roomExists = rooms.some((room) => room.roomCode_ === data.roomCode);
+    console.log(`joinRoom called with ${data.roomCode}, ${data.steamId}`);
+    if (!data.roomCode) {
+      // If no room is provided, ignore the join attempt.
+      return callback({ success: false, message: 'Invalid room code' });
+    }
 
-      if (!roomExists) {
-        // TODO: "reject" the attempt so that the user is notified this room doesnt exist
-        // callback({ error: "Room doesn't exist" });
-        console.log('room doesnt exist, notify the user to try again!');
-        return callback({ success: false, message: 'Room does not exist' });
+    const roomExists = rooms.some((room) => room.roomCode_ === data.roomCode);
+
+    if (!roomExists) {
+      // TODO: "reject" the attempt so that the user is notified this room doesnt exist
+      // callback({ error: "Room doesn't exist" });
+      console.log('room doesnt exist, notify the user to try again!');
+      return callback({ success: false, message: 'Room does not exist' });
+    }
+
+    const newPlayer = new JoinedPlayers();
+    newPlayer.socketId = socket.id;
+    newPlayer.steamId = data.steamId;
+    rooms[0].joinedPlayers.push(newPlayer);
+
+    socket.join(data.roomCode);
+    console.log(`${socket.id} joined room: ${data.roomCode} with steamid ${data.steamId}`);
+
+    // callback({ success: "joined room" });
+
+    // Notify other users in the room about the new user joining
+    callback({ success: true, message: 'Joining room' });
+
+    console.log(
+      `calling user-joined with ${socket.id} ${JSON.stringify({
+        steamId: data.steamId,
+        clientId: data.steamId,
+      })}`,
+    );
+    socket
+      .to(data.roomCode)
+      .emit('user-joined', socket.id, { steamId: data.steamId, clientId: data.steamId });
+
+    // Handle signaling (peer-to-peer connectio+ns)
+    socket.on('signal', ({ to, data: signalData }) => {
+      io.to(to).emit('signal', {
+        from: socket.id,
+        data: signalData,
+        client: { steamId: data.steamId, clientId: data.steamId },
+      });
+    });
+
+    //TODO: handle a manual 'leave' event, removing their data from their joined room
+
+    // Handle user disconnection
+    socket.on('disconnect', () => {
+      //TODO: remove them from the joinedPLayers array
+      // Evict player object
+      for (const room of rooms) {
+        room.joinedPlayers = room.joinedPlayers.filter((player) => player.socketId !== socket.id);
       }
-
-      let newPlayer = new JoinedPlayers();
-      newPlayer.socketId = socket.id;
-      newPlayer.steamId = data.steamId;
-      rooms[0].joinedPlayers.push(newPlayer);
-
-      socket.join(data.roomCode);
-      console.log(`${socket.id} joined room: ${data.roomCode} with steamid ${data.steamId}`);
-
-      // callback({ success: "joined room" });
-
-      // Notify other users in the room about the new user joining
-      callback({ success: true, message: 'Joining room' });
-
-      console.log(
-        `calling user-joined with ${socket.id} ${JSON.stringify({
-          steamId: data.steamId,
-          clientId: data.steamId,
-        })}`,
-      );
+      console.log(`${socket.id} disconnected. Cleaning up.. ${data.steamId}`);
       socket
         .to(data.roomCode)
-        .emit('user-joined', socket.id, { steamId: data.steamId, clientId: data.steamId });
-
-      // Handle signaling (peer-to-peer connectio+ns)
-      socket.on('signal', ({ to, data: signalData }: any) => {
-        io.to(to).emit('signal', {
-          from: socket.id,
-          data: signalData,
-          client: { steamId: data.steamId, clientId: data.steamId },
-        });
-      });
-
-      //TODO: handle a manual 'leave' event, removing their data from their joined room
-
-      // Handle user disconnection
-      socket.on('disconnect', () => {
-        //TODO: remove them from the joinedPLayers array
-        // Evict player object
-        for (const room of rooms) {
-          room.joinedPlayers = room.joinedPlayers.filter((player) => player.socketId !== socket.id);
-        }
-        console.log(`${socket.id} disconnected. Cleaning up.. ${data.steamId}`);
-        socket
-          .to(data.roomCode)
-          .emit('user-left', socket.id, { steamId: data.steamId, clientId: data.steamId });
-        socket.leave(data.roomCode); // Remove user from the room when they disconnect
-      });
-    },
-  );
+        .emit('user-left', socket.id, { steamId: data.steamId, clientId: data.steamId });
+      socket.leave(data.roomCode); // Remove user from the room when they disconnect
+    });
+  });
 });
 
 const getTURNCredentials = (steamId64: string) => {
