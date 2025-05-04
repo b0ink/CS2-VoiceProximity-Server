@@ -14,7 +14,11 @@ const isProduction = process.env.NODE_ENV === 'production';
 const port = Number(process.env.PORT) || 3000;
 const domain = process.env.DOMAIN_URL || 'localhost';
 const jwtSecretKey = process.env.JWT_SECRET_KEY || null;
+
 const coturnStaticAuthSecret = process.env.COTURN_STATIC_AUTH_SECRET || null;
+const coturnCredentialsExpiry = process.env.COTURN_CREDENTIALS_EXPIRY
+  ? parseInt(process.env.COTURN_CREDENTIALS_EXPIRY)
+  : 24 * 3600; // 24 hours
 
 if (jwtSecretKey === null) {
   throw Error('Invalid or no JWT_SECRET_KEY provided in environment variables.');
@@ -339,7 +343,7 @@ const getTURNCredentials = (steamId64: string) => {
     }
   }
 
-  const unixTimeStamp = Math.floor(Date.now() / 1000) + 24 * 3600; // this credential would be valid for the next 24 hours
+  const unixTimeStamp = Math.floor(Date.now() / 1000) + coturnCredentialsExpiry; // this credential would be valid for the next 24 hours
   const username = [unixTimeStamp, steamId64].join(':');
   const hmac = crypto.createHmac('sha1', coturnStaticAuthSecret);
   hmac.setEncoding('base64');
