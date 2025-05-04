@@ -298,11 +298,11 @@ io.on('connection', (socket: any) => {
         .to(data.roomCode)
         .emit('user-joined', socket.id, { steamId: data.steamId, clientId: data.steamId });
 
-      // Handle signaling (peer-to-peer connections)
-      socket.on('signal', ({ to, data }: any) => {
+      // Handle signaling (peer-to-peer connectio+ns)
+      socket.on('signal', ({ to, data: signalData }: any) => {
         io.to(to).emit('signal', {
           from: socket.id,
-          data,
+          data: signalData,
           client: { steamId: data.steamId, clientId: data.steamId },
         });
       });
