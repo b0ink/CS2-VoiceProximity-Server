@@ -46,7 +46,7 @@ app.get('/', async (req, res) => {
   return res.render('index');
 });
 
-app.get('/get-credential', async (req: Request, res: any) => {
+app.get('/get-turn-credential', async (req: Request, res: any) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
 
