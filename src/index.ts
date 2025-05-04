@@ -5,7 +5,8 @@ import mysql, { Pool } from 'mysql2';
 import path from 'path';
 import { Server } from 'socket.io';
 import { JwtAuthPayload, SteamOpenIDParams } from './types';
-import express from 'express';
+import express, { Request, Response } from 'express';
+import crypto from 'crypto';
 
 dotenv.config({ path: path.resolve(__dirname, '.env') });
 
@@ -13,10 +14,26 @@ const isProduction = process.env.NODE_ENV === 'production';
 const port = Number(process.env.PORT) || 3000;
 const domain = process.env.DOMAIN_URL || 'localhost';
 const jwtSecretKey = process.env.JWT_SECRET_KEY || null;
+const coturnStaticAuthSecret = process.env.COTURN_STATIC_AUTH_SECRET || null;
 
 if (jwtSecretKey === null) {
   throw Error('Invalid or no JWT_SECRET_KEY provided in environment variables.');
 }
+
+if (coturnStaticAuthSecret === null) {
+  throw Error('Invalid or no COTURN_STATIC_AUTH_SECRET provided in environment variables.');
+}
+
+interface TurnCredential {
+  username: string;
+  password: string;
+}
+
+interface SteamIdTurnCredentialMap {
+  [steamId64: string]: TurnCredential;
+}
+
+const turnCredentials: SteamIdTurnCredentialMap = {};
 
 const app = express();
 app.use(express.static(path.join(__dirname, '../src/public')));
@@ -27,6 +44,34 @@ const server = http.createServer(app);
 
 app.get('/', async (req, res) => {
   return res.render('index');
+});
+
+app.get('/get-credential', async (req: Request, res: any) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+
+  // const credentials = getTURNCredentials('76561197972732773');
+  // return res.status(200).json({ message: 'Success', data: credentials });
+
+  if (!token) {
+    return res.status(401).json({ message: 'Unauthorised' });
+  }
+
+  try {
+    const verified = jwt.verify(token, jwtSecretKey, {
+      audience: domain,
+    });
+
+    const payload = verified as JwtAuthPayload;
+    if (payload.steamId) {
+      const credentials = getTURNCredentials(payload.steamId);
+      return res.status(200).json({ message: 'Success', data: credentials });
+    }
+  } catch (e) {
+    return res.status(401).json({ message: 'Unauthorised' });
+  }
+
+  return res.status(500).json({ message: 'Unauthorised' });
 });
 
 app.get('/verify-steam', async (req, res) => {
@@ -276,6 +321,40 @@ io.on('connection', (socket: any) => {
     },
   );
 });
+
+const getTURNCredentials = (steamId64: string) => {
+  // TODO: we could also cache via ip to prevent abuse
+  const cached = turnCredentials[steamId64];
+
+  if (cached) {
+    const [expiryStr] = cached.username.split(':');
+    const expiry = parseInt(expiryStr, 10);
+
+    // check if the cached credential has expired (or is about to within 60 seconds)
+    if (!isNaN(expiry) && expiry - 60 > Date.now() / 1000) {
+      return cached;
+    } else {
+      delete turnCredentials[steamId64]; // cleanup expired
+    }
+  }
+
+  const unixTimeStamp = Math.floor(Date.now() / 1000) + 24 * 3600; // this credential would be valid for the next 24 hours
+  const username = [unixTimeStamp, steamId64].join(':');
+  const hmac = crypto.createHmac('sha1', coturnStaticAuthSecret);
+  hmac.setEncoding('base64');
+  hmac.write(username);
+  hmac.end();
+  const password = hmac.read();
+
+  const turnCredential: TurnCredential = {
+    username,
+    password,
+  };
+
+  turnCredentials[steamId64] = turnCredential;
+
+  return turnCredential;
+};
 
 server.listen(port, () => {
   if (!isProduction) {
