@@ -5,10 +5,9 @@ import mysql, { Pool } from 'mysql2';
 import path from 'path';
 import { Server } from 'socket.io';
 import { JwtAuthPayload, SteamOpenIDParams } from './types';
+import express from 'express';
 
-// test
-
-const result = dotenv.config({ path: path.resolve(__dirname, '.env') });
+dotenv.config({ path: path.resolve(__dirname, '.env') });
 
 const isProduction = process.env.NODE_ENV === 'production';
 const port = Number(process.env.PORT) || 3000;
@@ -19,76 +18,51 @@ if (jwtSecretKey === null) {
   throw Error('Invalid or no JWT_SECRET_KEY provided in environment variables.');
 }
 
-const server = http.createServer(async (req, res) => {
-  if (req.method === 'GET' && req.url === '/') {
-    res.writeHead(200, { 'Content-Type': 'text/html' });
-    res.end(`
-      <html>
-        <body>
-        <p>Hello world!</p>
-        </body>
-      </html>
-    `);
+const app = express();
+app.use(express.static(path.join(__dirname, 'src/public')));
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, '../src/views'));
+
+const server = http.createServer(app);
+
+app.get('/', async (req, res) => {
+  return res.render('index');
+});
+
+app.get('/verify-steam', async (req, res) => {
+  const url = new URL(req.url, `http://${req.headers.host}`);
+
+  const params: SteamOpenIDParams = {
+    ns: url.searchParams.get('openid.ns') || undefined,
+    mode: url.searchParams.get('openid.mode') || undefined,
+    op_endpoint: url.searchParams.get('openid.op_endpoint') || undefined,
+    claimed_id: url.searchParams.get('openid.claimed_id') || undefined,
+    identity: url.searchParams.get('openid.identity') || undefined,
+    return_to: url.searchParams.get('openid.return_to') || undefined,
+    response_nonce: url.searchParams.get('openid.response_nonce') || undefined,
+    assoc_handle: url.searchParams.get('openid.assoc_handle') || undefined,
+    signed: url.searchParams.get('openid.signed') || undefined,
+    sig: url.searchParams.get('openid.sig') || undefined,
+  };
+
+  const steamId64 = params.identity?.split('.com/openid/id/')[1];
+  const isPayloadValid = await validateSteamAuth(params);
+
+  if (!isPayloadValid || !steamId64) {
+    return res.render('auth-failed');
   }
 
-  if (req.method === 'GET' && req.url?.startsWith('/verify-steam')) {
-    const url = new URL(req.url, `http://${req.headers.host}`);
+  const jwtPayload: JwtAuthPayload = {
+    steamId: steamId64,
+    iat: Math.floor(Date.now() / 1000),
+    exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7,
+    aud: domain,
+  };
 
-    const params: SteamOpenIDParams = {
-      ns: url.searchParams.get('openid.ns') || undefined,
-      mode: url.searchParams.get('openid.mode') || undefined,
-      op_endpoint: url.searchParams.get('openid.op_endpoint') || undefined,
-      claimed_id: url.searchParams.get('openid.claimed_id') || undefined,
-      identity: url.searchParams.get('openid.identity') || undefined,
-      return_to: url.searchParams.get('openid.return_to') || undefined,
-      response_nonce: url.searchParams.get('openid.response_nonce') || undefined,
-      assoc_handle: url.searchParams.get('openid.assoc_handle') || undefined,
-      signed: url.searchParams.get('openid.signed') || undefined,
-      sig: url.searchParams.get('openid.sig') || undefined,
-    };
-
-    const steamId64 = params.identity!.split('.com/openid/id/')[1];
-    const isPayloadValid = await validateSteamAuth(params);
-    // console.log(`is the payload valid?: ${isPayloadValid}`);
-
-    if (!isPayloadValid || !steamId64) {
-      res.writeHead(200, { 'Content-Type': 'text/html' });
-      res.end(`
-        <html>
-          <body>
-          <p>Failed to authenticate, please try again!</p>
-          </body>
-        </html>
-      `);
-      return;
-    }
-
-    const jwtPayload: JwtAuthPayload = {
-      steamId: steamId64,
-      iat: Math.floor(Date.now() / 1000),
-      // exp: Math.floor(Date.now() / 1000) + 1,
-      exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7, // 7 days expiry
-      aud: domain,
-    };
-
-    const token = await jwt.sign(jwtPayload, jwtSecretKey);
-    // console.log(token);
-
-    const redirectUrl = `${process.env.REDIRECT_URL_PROTOCOL}?token=${token}`;
-    console.log('Authenticating steam id via /verify-steam ...');
-    // console.log(`Redirecting to ${redirectUrl}`);
-    res.writeHead(200, { 'Content-Type': 'text/html' });
-    res.end(`
-      <html>
-        <body>
-        <p>You've signed in. You can now close this page.</p>
-        <script>
-        window.location.href = "${redirectUrl}";
-        </script>
-        </body>
-      </html>
-    `);
-  }
+  const token = await jwt.sign(jwtPayload, jwtSecretKey);
+  res.render('auth-success', {
+    redirectUrl: `${process.env.REDIRECT_URL_PROTOCOL}?token=${token}`,
+  });
 });
 
 async function validateSteamAuth(payload: SteamOpenIDParams): Promise<boolean> {
@@ -118,8 +92,8 @@ async function validateSteamAuth(payload: SteamOpenIDParams): Promise<boolean> {
 
 const io = new Server(server, {
   cors: {
-    // origin: isProduction ? domain : '*', // Replace with your frontend domain in production
-    origin: '*', // Replace with your frontend domain in production
+    // origin: isProduction ? domain : '*',
+    origin: '*',
     methods: ['GET', 'POST'],
   },
 });
