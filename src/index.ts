@@ -323,6 +323,7 @@ io.on('connection', (socket: any) => {
 });
 
 const getTURNCredentials = (steamId64: string) => {
+  console.log(`Getting turn credentials for ${steamId64}`);
   // TODO: we could also cache via ip to prevent abuse
   const cached = turnCredentials[steamId64];
 
