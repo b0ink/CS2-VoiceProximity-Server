@@ -227,8 +227,8 @@ io.on('connection', (socket: Socket) => {
       const playerData: PlayerData = {
         steamId,
         name,
-        origin: { x: ox, y: oy, z: oz },
-        lookAt: { x: lx, y: ly, z: lz },
+        origin: { x: ox / 10000, y: oy / 10000, z: oz / 10000 },
+        lookAt: { x: lx / 10000, y: ly / 10000, z: lz / 10000 },
         team,
         isAlive,
       };
