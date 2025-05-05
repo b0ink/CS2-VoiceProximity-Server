@@ -1,12 +1,13 @@
-import crypto from 'crypto';
-import dotenv from 'dotenv';
+import { decode } from '@msgpack/msgpack';
 import express, { Request, Response } from 'express';
 import http from 'http';
 import jwt from 'jsonwebtoken';
 import mysql, { Pool, QueryError, QueryResult } from 'mysql2';
 import path from 'path';
 import { Server, Socket } from 'socket.io';
-import { decode } from '@msgpack/msgpack';
+import { domain, isProduction, jwtSecretKey, port } from './config';
+import getTurnCredential from './routes/get-turn-credential';
+import verifySteam from './routes/verify-steam';
 import {
   JoinedPlayers,
   JoinRoomCallback,
@@ -14,133 +15,18 @@ import {
   JwtAuthPayload,
   PlayerData,
   RoomData,
-  SteamIdTurnCredentialMap,
-  SteamOpenIDParams,
-  TurnCredential,
 } from './types';
-
-dotenv.config({ path: path.resolve(__dirname, '.env') });
-
-const isProduction = process.env.NODE_ENV === 'production';
-const port = Number(process.env.PORT) || 3000;
-const domain = process.env.DOMAIN_URL || 'localhost';
-const jwtSecretKey = process.env.JWT_SECRET_KEY || null;
-
-const coturnStaticAuthSecret = process.env.COTURN_STATIC_AUTH_SECRET || null;
-const coturnCredentialsExpiry = process.env.COTURN_CREDENTIALS_EXPIRY
-  ? parseInt(process.env.COTURN_CREDENTIALS_EXPIRY)
-  : 24 * 3600; // 24 hours
-
-if (jwtSecretKey === null) {
-  throw Error('Invalid or no JWT_SECRET_KEY provided in environment variables.');
-}
-
-if (coturnStaticAuthSecret === null) {
-  throw Error('Invalid or no COTURN_STATIC_AUTH_SECRET provided in environment variables.');
-}
-
-const turnCredentials: SteamIdTurnCredentialMap = {};
 
 const app = express();
 app.use(express.static(path.join(__dirname, '../src/public')));
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, '../src/views'));
 
+app.get('/', (req: Request, res: Response) => res.render('index'));
+app.use('/', verifySteam);
+app.use('/', getTurnCredential);
+
 const server = http.createServer(app);
-
-app.get('/', async (req: Request, res: Response) => {
-  return res.render('index');
-});
-
-app.get('/get-turn-credential', async (req: Request, res: Response) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
-
-  // const credentials = getTURNCredentials('76561197972732773');
-  // return res.status(200).json({ message: 'Success', data: credentials });
-
-  if (!token) {
-    res.status(401).json({ message: 'Unauthorised' });
-    return;
-  }
-  try {
-    const verified = jwt.verify(token, jwtSecretKey, {
-      audience: domain,
-    });
-    const payload = verified as JwtAuthPayload;
-    if (payload.steamId) {
-      const credentials = getTURNCredentials(payload.steamId);
-      res.status(200).json({ message: 'Success', data: credentials });
-      return;
-    }
-  } catch (e) {
-    console.error(e);
-    res.status(401).json({ message: 'Unauthorised' });
-    return;
-  }
-  res.status(500).json({ message: 'Unauthorised' });
-});
-
-app.get('/verify-steam', async (req: Request, res: Response) => {
-  const url = new URL(req.url, `http://${req.headers.host}`);
-
-  const params: SteamOpenIDParams = {
-    ns: url.searchParams.get('openid.ns') || undefined,
-    mode: url.searchParams.get('openid.mode') || undefined,
-    op_endpoint: url.searchParams.get('openid.op_endpoint') || undefined,
-    claimed_id: url.searchParams.get('openid.claimed_id') || undefined,
-    identity: url.searchParams.get('openid.identity') || undefined,
-    return_to: url.searchParams.get('openid.return_to') || undefined,
-    response_nonce: url.searchParams.get('openid.response_nonce') || undefined,
-    assoc_handle: url.searchParams.get('openid.assoc_handle') || undefined,
-    signed: url.searchParams.get('openid.signed') || undefined,
-    sig: url.searchParams.get('openid.sig') || undefined,
-  };
-
-  const steamId64 = params.identity?.split('.com/openid/id/')[1];
-  const isPayloadValid = await validateSteamAuth(params);
-
-  if (!isPayloadValid || !steamId64) {
-    return res.render('auth-failed');
-  }
-
-  const jwtPayload: JwtAuthPayload = {
-    steamId: steamId64,
-    iat: Math.floor(Date.now() / 1000),
-    exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7,
-    aud: domain,
-  };
-
-  const token = await jwt.sign(jwtPayload, jwtSecretKey);
-  res.render('auth-success', {
-    redirectUrl: `${process.env.REDIRECT_URL_PROTOCOL}?token=${token}`,
-  });
-});
-
-async function validateSteamAuth(payload: SteamOpenIDParams): Promise<boolean> {
-  const params = new URLSearchParams({
-    'openid.ns': payload.ns!,
-    'openid.op_endpoint': payload.op_endpoint!,
-    'openid.claimed_id': payload.claimed_id!,
-    'openid.identity': payload.identity!,
-    'openid.return_to': payload.return_to!,
-    'openid.response_nonce': payload.response_nonce!,
-    'openid.assoc_handle': payload.assoc_handle!,
-    'openid.signed': payload.signed!,
-    'openid.sig': payload.sig!,
-    'openid.mode': 'check_authentication',
-  });
-
-  const response = await fetch('https://steamcommunity.com/openid/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: params.toString(),
-  });
-
-  const text = await response.text();
-  // console.log(`Validating steam auth response:\n---\n${text}\n---`);
-  return text.includes('is_valid:true');
-}
 
 const io = new Server(server, {
   cors: {
@@ -324,41 +210,6 @@ io.on('connection', (socket: Socket) => {
     });
   });
 });
-
-const getTURNCredentials = (steamId64: string) => {
-  console.log(`Getting turn credentials for ${steamId64}`);
-  // TODO: we could also cache via ip to prevent abuse
-  const cached = turnCredentials[steamId64];
-
-  if (cached) {
-    const [expiryStr] = cached.username.split(':');
-    const expiry = parseInt(expiryStr, 10);
-
-    // check if the cached credential has expired (or is about to within 60 seconds)
-    if (!isNaN(expiry) && expiry - 60 > Date.now() / 1000) {
-      return cached;
-    } else {
-      delete turnCredentials[steamId64]; // cleanup expired
-    }
-  }
-
-  const unixTimeStamp = Math.floor(Date.now() / 1000) + coturnCredentialsExpiry; // this credential would be valid for the next 24 hours
-  const username = [unixTimeStamp, steamId64].join(':');
-  const hmac = crypto.createHmac('sha1', coturnStaticAuthSecret);
-  hmac.setEncoding('base64');
-  hmac.write(username);
-  hmac.end();
-  const password = hmac.read();
-
-  const turnCredential: TurnCredential = {
-    username,
-    password,
-  };
-
-  turnCredentials[steamId64] = turnCredential;
-
-  return turnCredential;
-};
 
 server.listen(port, () => {
   if (!isProduction) {
