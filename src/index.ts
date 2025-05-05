@@ -4,7 +4,7 @@ import http from 'http';
 import jwt from 'jsonwebtoken';
 import path from 'path';
 import { Server, Socket } from 'socket.io';
-import { domain, jwtSecretKey, port } from './config';
+import { domain, isProduction, jwtSecretKey, port } from './config';
 import getTurnCredential from './routes/get-turn-credential';
 import verifySteam from './routes/verify-steam';
 import {
@@ -76,9 +76,11 @@ io.on('connection', (socket: Socket) => {
       //TODO: figure out what room this server belongs to and relay the player positions
       // io.volatile.to('123').emit('player-positions', results);
 
-      console.log(
-        `${playerData.name} is at [${playerData.origin.x}, ${playerData.origin.y}, ${playerData.origin.z}] Room: ${from}`,
-      );
+      if (!isProduction) {
+        console.log(
+          `${playerData.name} is at [${playerData.origin.x}, ${playerData.origin.y}, ${playerData.origin.z}] Room: ${from}`,
+        );
+      }
     }
   });
 
