@@ -74,6 +74,7 @@ io.on('connection', (socket: Socket) => {
     console.log(`Active rooms: ${JSON.stringify(rooms)}`);
 
     socket.on('server-data', (from, data) => {
+      console.log(from, data);
       io.volatile.to(serverId).emit('player-positions', data);
     });
   }
