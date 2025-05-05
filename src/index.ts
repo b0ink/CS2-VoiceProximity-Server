@@ -42,24 +42,33 @@ const testDefaultRoom = '123';
 const rooms: RoomData[] = [new RoomData(testDefaultRoom)];
 
 io.on('connection', (socket: Socket) => {
-  const address = socket.request.socket.remoteAddress;
-  const ip = socket.handshake.headers['x-forwarded-for'];
-  const ip2 = socket.handshake.address; //?.split(',')[0]?.trim();
-  const ua = socket.handshake.headers['user-agent'];
-  const lang = socket.handshake.headers['accept-language'];
+  // const ua = socket.handshake.headers['user-agent'];
+  // const lang = socket.handshake.headers['accept-language'];
+  // console.log('User-Agent:', ua);
+  // console.log('Accept-Language:', lang);
 
-  console.log('New connection from address:', address);
+  // TODO: if there's no api key, check for a JWT (user connection from the electron app)
+
+  const ip = socket.handshake.headers['x-forwarded-for'];
   console.log('New connection from IP:', ip);
-  console.log('New connection from IP2:', ip2);
-  console.log('User-Agent:', ua);
-  console.log('Accept-Language:', lang);
 
   const query = socket.handshake.query;
-  console.log(`incoming query: ${JSON.stringify(query)}`);
 
-  if (!query.apikey) {
+  const apiKey = query['api-key'];
+  const serverAddress = query['server-address'];
+  const serverPort = query['server-port'];
+
+  if (!apiKey || !serverAddress || !serverPort) {
     socket.disconnect();
-    console.log(`Reject incoming connection (invalid api key)`);
+    console.log(`Reject incoming connection (invalid api key, server address, or server port)`);
+    return;
+  }
+
+  if (ip !== serverAddress) {
+    socket.disconnect();
+    console.log(
+      `IP mismatch: expected ${serverAddress}, got ${ip} (port: ${serverPort}, apiKey: ${apiKey})`,
+    );
     return;
   }
 
