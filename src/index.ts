@@ -35,7 +35,6 @@ const io = new Server(server, {
     methods: ['GET', 'POST'],
   },
 });
-
 // io.engine.set('trust proxy', true);
 
 const testDefaultRoom = '123';
@@ -43,11 +42,13 @@ const testDefaultRoom = '123';
 const rooms: RoomData[] = [new RoomData(testDefaultRoom)];
 
 io.on('connection', (socket: Socket) => {
+  const port = socket.request.socket.remotePort;
   const ip = socket.handshake.headers['x-forwarded-for'];
   const ip2 = socket.handshake.address; //?.split(',')[0]?.trim();
   const ua = socket.handshake.headers['user-agent'];
   const lang = socket.handshake.headers['accept-language'];
 
+  console.log('New connection from Port:', port);
   console.log('New connection from IP:', ip);
   console.log('New connection from IP2:', ip2);
   console.log('User-Agent:', ua);
