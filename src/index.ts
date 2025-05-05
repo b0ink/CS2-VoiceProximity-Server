@@ -4,7 +4,7 @@ import http from 'http';
 import jwt from 'jsonwebtoken';
 import path from 'path';
 import { Server, Socket } from 'socket.io';
-import { domain, isProduction, jwtSecretKey, port } from './config';
+import { defaultApiKey, domain, isProduction, jwtSecretKey, port } from './config';
 import getTurnCredential from './routes/get-turn-credential';
 import verifySteam from './routes/verify-steam';
 import {
@@ -47,30 +47,39 @@ io.on('connection', (socket: Socket) => {
   // console.log('User-Agent:', ua);
   // console.log('Accept-Language:', lang);
 
-  // TODO: if there's no api key, check for a JWT (user connection from the electron app)
-
-  const ip = socket.handshake.headers['x-forwarded-for'];
-  console.log('New connection from IP:', ip);
-
   const query = socket.handshake.query;
 
   const apiKey = query['api-key'];
   const serverAddress = query['server-address'];
   const serverPort = query['server-port'];
 
-  if (!apiKey || !serverAddress || !serverPort) {
-    socket.disconnect();
-    console.log(`Reject incoming connection (invalid api key, server address, or server port)`);
-    return;
+  if (apiKey && !serverAddress && !serverPort) {
+    if (apiKey !== defaultApiKey) {
+      socket.disconnect();
+      console.log(`Reject incoming connection (invalid api key, server address, or server port)`);
+      return;
+    }
+
+    const ip = socket.handshake.headers['x-forwarded-for'];
+    console.log('New connection from IP:', ip);
+
+    if (ip !== serverAddress) {
+      socket.disconnect();
+      console.log(
+        `IP mismatch: expected ${serverAddress}, got ${ip} (port: ${serverPort}, apiKey: ${apiKey})`,
+      );
+      return;
+    }
+
+    const serverId = `${serverAddress}:${port}`;
+    const exists = rooms.some((room) => room.roomCode_ === serverId);
+    if (!exists) {
+      rooms.push(new RoomData(`${serverAddress}:${port}`));
+      // TODO: if no request is made from this apikey/server after some time, remove the room
+    }
   }
 
-  if (ip !== serverAddress) {
-    socket.disconnect();
-    console.log(
-      `IP mismatch: expected ${serverAddress}, got ${ip} (port: ${serverPort}, apiKey: ${apiKey})`,
-    );
-    return;
-  }
+  // TODO: check for JWT from user?
 
   console.log(`New user connected: ${socket.id} | ${apiKey}`);
 
