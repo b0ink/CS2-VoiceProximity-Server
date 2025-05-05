@@ -72,7 +72,7 @@ io.on('connection', (socket: Socket) => {
     return;
   }
 
-  console.log(`New user connected: ${socket.id} | ${query.apikey}`);
+  console.log(`New user connected: ${socket.id} | ${apiKey}`);
 
   socket.on('server-data', (from, data) => {
     // console.log(`Receiving server data .. .. ${JSON.stringify(data)}`);
