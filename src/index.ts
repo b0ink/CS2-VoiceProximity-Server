@@ -54,7 +54,16 @@ io.on('connection', (socket: Socket) => {
   console.log('User-Agent:', ua);
   console.log('Accept-Language:', lang);
 
-  console.log('New user connected: ', socket.id);
+  const query = socket.handshake.query;
+  console.log(`incoming query: ${JSON.stringify(query)}`);
+
+  if (!query.apikey) {
+    socket.disconnect();
+    console.log(`Reject incoming connection (invalid api key)`);
+    return;
+  }
+
+  console.log(`New user connected: ${socket.id} | ${query.apikey}`);
 
   socket.on('server-data', (from, data) => {
     // console.log(`Receiving server data .. .. ${JSON.stringify(data)}`);
