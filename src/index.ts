@@ -2,10 +2,9 @@ import { decode } from '@msgpack/msgpack';
 import express, { Request, Response } from 'express';
 import http from 'http';
 import jwt from 'jsonwebtoken';
-import mysql, { Pool, QueryError, QueryResult } from 'mysql2';
 import path from 'path';
 import { Server, Socket } from 'socket.io';
-import { domain, isProduction, jwtSecretKey, port } from './config';
+import { domain, jwtSecretKey, port } from './config';
 import getTurnCredential from './routes/get-turn-credential';
 import verifySteam from './routes/verify-steam';
 import {
@@ -36,71 +35,17 @@ const io = new Server(server, {
   },
 });
 
-const dbPools: { [roomId: string]: Pool } = {};
-
 const testDefaultRoom = '123';
 
-// TODO: pull db information from the room host
-const config = {
-  DatabaseHost: process.env.DATABASE_HOST,
-  DatabaseUser: process.env.DATABASE_USER,
-  DatabasePassword: process.env.DATABASE_PASSWORD,
-  DatabaseName: process.env.DATABASE_NAME,
-};
-
-const databaseFetchRate: number = Number(process.env.DATABASE_FETCH_RATE) || 50;
-// let connection: Pool;
-const connectionRetryDelay = 5000; // 5000ms delay if the connection fails
-
-const getDbConnection = () => {
-  dbPools[testDefaultRoom] = mysql.createPool({
-    host: config.DatabaseHost,
-    user: config.DatabaseUser,
-    password: config.DatabasePassword,
-    database: config.DatabaseName,
-  });
-};
-
-const fetchProximityData = () => {
-  return new Promise((resolve, reject) => {
-    dbPools[testDefaultRoom].query(
-      'SELECT * FROM ProximityData',
-      (err: QueryError, results: QueryResult) => {
-        if (err) {
-          reject(err);
-          return;
-        }
-        resolve(results);
-      },
-    );
-  });
-};
-
-// Query the database and send the results to connected users
-const queryDatabaseAndUpdatePlayers = async () => {
-  try {
-    const results = await fetchProximityData();
-    // TODO: we could hash the results per room and only emit if the data has changed
-    // TODO: we could also filter out players that havent changed (standing still)
-    io.volatile.to('123').emit('player-positions', results);
-    setTimeout(queryDatabaseAndUpdatePlayers, databaseFetchRate);
-  } catch (err) {
-    console.error('Error fetching player positions:', err);
-    console.log(`Attempting db connection in ${connectionRetryDelay}ms..`);
-    setTimeout(queryDatabaseAndUpdatePlayers, connectionRetryDelay);
-    return;
-  }
-};
-
-setTimeout(queryDatabaseAndUpdatePlayers, databaseFetchRate);
-
-const rooms: RoomData[] = [new RoomData('123')];
+const rooms: RoomData[] = [new RoomData(testDefaultRoom)];
 
 io.on('connection', (socket: Socket) => {
   console.log('New user connected: ', socket.id);
 
   socket.on('server-data', (from, data) => {
     // console.log(`Receiving server data .. .. ${JSON.stringify(data)}`);
+
+    // TODO: don't decode the data on the server, the client will decode it
     const decoded = decode(new Uint8Array(data));
     const players = decoded as Array<
       [string, string, number, number, number, number, number, number, number, boolean]
@@ -118,8 +63,11 @@ io.on('connection', (socket: Socket) => {
         isAlive,
       };
 
+      //TODO: figure out what room this server belongs to and relay the player positions
+      // io.volatile.to('123').emit('player-positions', results);
+
       console.log(
-        `${playerData.name} is at [${playerData.origin.x}, ${playerData.origin.y}, ${playerData.origin.z}]`,
+        `${playerData.name} is at [${playerData.origin.x}, ${playerData.origin.y}, ${playerData.origin.z}] Room: ${from}`,
       );
     }
   });
@@ -128,8 +76,6 @@ io.on('connection', (socket: Socket) => {
   // TODO: steamId and clientId are the same right now
   socket.on('join-room', (data: JoinRoomData, callback: JoinRoomCallback) => {
     //TODO; capacity limits on joining room
-    //TODO: to "create a room", lobby host will need to pass in the database connection.
-    //TODO: if the db connection fails (doesnt find a table), it won't create new room
     console.log('user joining room');
 
     try {
@@ -212,10 +158,5 @@ io.on('connection', (socket: Socket) => {
 });
 
 server.listen(port, () => {
-  if (!isProduction) {
-    console.log(`Server running on http://localhost:${port}`);
-  } else {
-    console.log(`Running server on ${domain}:${port}`);
-  }
-  getDbConnection();
+  console.log(`Server running on http://${domain}:${port}`);
 });
