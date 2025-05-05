@@ -6,7 +6,16 @@ import jwt from 'jsonwebtoken';
 import mysql, { Pool, QueryError, QueryResult } from 'mysql2';
 import path from 'path';
 import { Server, Socket } from 'socket.io';
-import { JwtAuthPayload, SteamOpenIDParams } from './types';
+import {
+  JoinedPlayers,
+  JoinRoomCallback,
+  JoinRoomData,
+  JwtAuthPayload,
+  RoomData,
+  SteamIdTurnCredentialMap,
+  SteamOpenIDParams,
+  TurnCredential,
+} from './types';
 
 dotenv.config({ path: path.resolve(__dirname, '.env') });
 
@@ -26,15 +35,6 @@ if (jwtSecretKey === null) {
 
 if (coturnStaticAuthSecret === null) {
   throw Error('Invalid or no COTURN_STATIC_AUTH_SECRET provided in environment variables.');
-}
-
-interface TurnCredential {
-  username: string;
-  password: string;
-}
-
-interface SteamIdTurnCredentialMap {
-  [steamId64: string]: TurnCredential;
 }
 
 const turnCredentials: SteamIdTurnCredentialMap = {};
@@ -206,39 +206,7 @@ const queryDatabaseAndUpdatePlayers = async () => {
 
 setTimeout(queryDatabaseAndUpdatePlayers, databaseFetchRate);
 
-class JoinedPlayers {
-  // TODO; is there any persistence for socketIds?? when page is refreshed, new id is generated.
-  socketId: string | null = null;
-  steamId: string | null = null;
-}
-
-class RoomData {
-  roomCode_?: string = undefined;
-  maxPlayers_?: number = 10;
-  joinedPlayers: JoinedPlayers[] = [];
-
-  constructor(roomCode: string, maxPlayers?: number) {
-    this.roomCode_ = roomCode;
-    this.maxPlayers_ = maxPlayers;
-  }
-}
-
 const rooms: RoomData[] = [new RoomData('123')];
-
-// interface JoinRoomData{
-//   roomCode?: String;
-//   steamId?: String;
-// }
-
-interface JoinRoomData {
-  token: string;
-  roomCode: string;
-  steamId: string;
-  clientId: string;
-  isHost: boolean;
-}
-
-type JoinRoomCallback = (response: { success: boolean; message: string }) => void;
 
 io.on('connection', (socket: Socket) => {
   console.log('New user connected: ', socket.id);
@@ -278,8 +246,6 @@ io.on('connection', (socket: Socket) => {
     const roomExists = rooms.some((room) => room.roomCode_ === data.roomCode);
 
     if (!roomExists) {
-      // TODO: "reject" the attempt so that the user is notified this room doesnt exist
-      // callback({ error: "Room doesn't exist" });
       console.log('room doesnt exist, notify the user to try again!');
       return callback({ success: false, message: 'Room does not exist' });
     }
@@ -290,11 +256,7 @@ io.on('connection', (socket: Socket) => {
     rooms[0].joinedPlayers.push(newPlayer);
 
     socket.join(data.roomCode);
-    console.log(`${socket.id} joined room: ${data.roomCode} with steamid ${data.steamId}`);
 
-    // callback({ success: "joined room" });
-
-    // Notify other users in the room about the new user joining
     callback({ success: true, message: 'Joining room' });
 
     console.log(
@@ -303,6 +265,8 @@ io.on('connection', (socket: Socket) => {
         clientId: data.steamId,
       })}`,
     );
+
+    // Notify other users in the room about the new user joining
     socket
       .to(data.roomCode)
       .emit('user-joined', socket.id, { steamId: data.steamId, clientId: data.steamId });
