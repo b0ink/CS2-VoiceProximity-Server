@@ -1,20 +1,12 @@
-import { decode } from '@msgpack/msgpack';
 import express, { Request, Response } from 'express';
 import http from 'http';
 import jwt from 'jsonwebtoken';
 import path from 'path';
 import { Server, Socket } from 'socket.io';
-import { defaultApiKey, domain, isProduction, jwtSecretKey, port } from './config';
+import { defaultApiKey, domain, jwtSecretKey, port } from './config';
 import getTurnCredential from './routes/get-turn-credential';
 import verifySteam from './routes/verify-steam';
-import {
-  JoinedPlayers,
-  JoinRoomCallback,
-  JoinRoomData,
-  JwtAuthPayload,
-  PlayerData,
-  RoomData,
-} from './types';
+import { JoinedPlayers, JoinRoomCallback, JoinRoomData, JwtAuthPayload, RoomData } from './types';
 
 const app = express();
 app.use(express.static(path.join(__dirname, '../src/public')));
@@ -78,44 +70,17 @@ io.on('connection', (socket: Socket) => {
       console.log(`Creating new room: ${serverId}`);
       // TODO: if no request is made from this apikey/server after some time, remove the room
     }
+
     console.log(`Active rooms: ${JSON.stringify(rooms)}`);
+
+    socket.on('server-data', (from, data) => {
+      io.volatile.to(serverId).emit('player-positions', data);
+    });
   }
 
   // TODO: check for JWT from user?
 
   console.log(`New user connected: ${socket.id} | ${apiKey}`);
-
-  socket.on('server-data', (from, data) => {
-    // console.log(`Receiving server data .. .. ${JSON.stringify(data)}`);
-
-    // TODO: don't decode the data on the server, the client will decode it
-    const decoded = decode(new Uint8Array(data));
-    const players = decoded as Array<
-      [string, string, number, number, number, number, number, number, number, boolean]
-    >;
-    for (const player of players) {
-      const [steamId, name, ox, oy, oz, lx, ly, lz, team, isAlive] = player;
-
-      // Cast to PlayerData interface
-      const playerData: PlayerData = {
-        steamId,
-        name,
-        origin: { x: ox / 10000, y: oy / 10000, z: oz / 10000 },
-        lookAt: { x: lx / 10000, y: ly / 10000, z: lz / 10000 },
-        team,
-        isAlive,
-      };
-
-      //TODO: figure out what room this server belongs to and relay the player positions
-      // io.volatile.to('123').emit('player-positions', results);
-
-      if (!isProduction) {
-        console.log(
-          `${playerData.name} is at [${playerData.origin.x}, ${playerData.origin.y}, ${playerData.origin.z}] Room: ${from}`,
-        );
-      }
-    }
-  });
 
   // Handle joining a room
   // TODO: steamId and clientId are the same right now
