@@ -51,3 +51,25 @@ export interface JoinRoomData {
 }
 
 export type JoinRoomCallback = (response: { success: boolean; message: string }) => void;
+
+export type PlayerDataTuple = [
+  string, // SteamId
+  string, // Name
+  number, // OriginX
+  number, // OriginY
+  number, // OriginZ
+  number, // LookAtX
+  number, // LookAtY
+  number, // LookAtZ
+  number, // Team
+  boolean, // IsAlive
+];
+
+export interface PlayerData {
+  steamId: string;
+  name: string;
+  origin: { x: number; y: number; z: number };
+  lookAt: { x: number; y: number; z: number };
+  team: number;
+  isAlive: boolean;
+}

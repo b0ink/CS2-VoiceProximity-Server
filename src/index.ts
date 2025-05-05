@@ -12,6 +12,8 @@ import {
   JoinRoomCallback,
   JoinRoomData,
   JwtAuthPayload,
+  PlayerData,
+  PlayerDataTuple,
   RoomData,
   SteamIdTurnCredentialMap,
   SteamOpenIDParams,
@@ -215,7 +217,26 @@ io.on('connection', (socket: Socket) => {
   socket.on('server-data', (from, data) => {
     // console.log(`Receiving server data .. .. ${JSON.stringify(data)}`);
     const decoded = decode(new Uint8Array(data));
-    console.log(`Decoded server data: ${decoded}`);
+    const players = decoded as Array<
+      [string, string, number, number, number, number, number, number, number, boolean]
+    >;
+    for (const player of players) {
+      const [steamId, name, ox, oy, oz, lx, ly, lz, team, isAlive] = player;
+
+      // Cast to PlayerData interface
+      const playerData: PlayerData = {
+        steamId,
+        name,
+        origin: { x: ox, y: oy, z: oz },
+        lookAt: { x: lx, y: ly, z: lz },
+        team,
+        isAlive,
+      };
+
+      console.log(
+        `${playerData.name} is at [${playerData.origin.x}, ${playerData.origin.y}, ${playerData.origin.z}]`,
+      );
+    }
   });
 
   // Handle joining a room
