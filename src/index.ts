@@ -74,8 +74,8 @@ io.on('connection', (socket: Socket) => {
     console.log(`Active rooms: ${JSON.stringify(rooms)}`);
 
     socket.on('server-data', (from, data) => {
-      const sizeKb = Buffer.byteLength(data) / 1024;
-      console.log(`Data size: ${sizeKb.toFixed(2)} KB`);
+      // const sizeKb = Buffer.byteLength(data) / 1024;
+      // console.log(`Data size: ${sizeKb.toFixed(2)} KB`);
       io.volatile.to(serverId).emit('player-positions', data);
     });
   }
