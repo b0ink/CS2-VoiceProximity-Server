@@ -15,6 +15,7 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@msgpack/msgpack": "^3.1.1",
     "@types/jsonwebtoken": "^9.0.9",
     "dotenv": "^16.5.0",
     "ejs": "^3.1.10",

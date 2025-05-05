@@ -6,6 +6,7 @@ import jwt from 'jsonwebtoken';
 import mysql, { Pool, QueryError, QueryResult } from 'mysql2';
 import path from 'path';
 import { Server, Socket } from 'socket.io';
+import { decode } from '@msgpack/msgpack';
 import {
   JoinedPlayers,
   JoinRoomCallback,
@@ -211,8 +212,10 @@ const rooms: RoomData[] = [new RoomData('123')];
 io.on('connection', (socket: Socket) => {
   console.log('New user connected: ', socket.id);
 
-  socket.on('server-data', (data, data2) => {
-    console.log(`Receiving server data .. ${JSON.stringify(data)} .. ${JSON.stringify(data2)}`);
+  socket.on('server-data', (from, data) => {
+    // console.log(`Receiving server data .. .. ${JSON.stringify(data)}`);
+    const decoded = decode(new Uint8Array(data));
+    console.log(`Decoded server data: ${decoded}`);
   });
 
   // Handle joining a room
