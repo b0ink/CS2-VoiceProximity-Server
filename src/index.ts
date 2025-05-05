@@ -20,6 +20,7 @@ const app = express();
 app.use(express.static(path.join(__dirname, '../src/public')));
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, '../src/views'));
+app.set('trust proxy', true);
 
 app.get('/', (req: Request, res: Response) => res.render('index'));
 app.use('/', verifySteam);
@@ -42,11 +43,13 @@ const testDefaultRoom = '123';
 const rooms: RoomData[] = [new RoomData(testDefaultRoom)];
 
 io.on('connection', (socket: Socket) => {
-  const ip = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address; //?.split(',')[0]?.trim();
+  const ip = socket.handshake.headers['x-forwarded-for'];
+  const ip2 = socket.handshake.address; //?.split(',')[0]?.trim();
   const ua = socket.handshake.headers['user-agent'];
   const lang = socket.handshake.headers['accept-language'];
 
   console.log('New connection from IP:', ip);
+  console.log('New connection from IP2:', ip2);
   console.log('User-Agent:', ua);
   console.log('Accept-Language:', lang);
 
