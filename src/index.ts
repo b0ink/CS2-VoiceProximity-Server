@@ -71,7 +71,7 @@ io.on('connection', (socket: Socket) => {
       return;
     }
 
-    const serverId = `${serverAddress}:${port}`;
+    const serverId = `${serverAddress}:${serverPort}`;
     const exists = rooms.some((room) => room.roomCode_ === serverId);
     if (!exists) {
       rooms.push(new RoomData(serverId));
