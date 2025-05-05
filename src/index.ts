@@ -35,11 +35,21 @@ const io = new Server(server, {
   },
 });
 
+// io.engine.set('trust proxy', true);
+
 const testDefaultRoom = '123';
 
 const rooms: RoomData[] = [new RoomData(testDefaultRoom)];
 
 io.on('connection', (socket: Socket) => {
+  const ip = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address; //?.split(',')[0]?.trim();
+  const ua = socket.handshake.headers['user-agent'];
+  const lang = socket.handshake.headers['accept-language'];
+
+  console.log('New connection from IP:', ip);
+  console.log('User-Agent:', ua);
+  console.log('Accept-Language:', lang);
+
   console.log('New user connected: ', socket.id);
 
   socket.on('server-data', (from, data) => {
