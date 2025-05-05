@@ -53,7 +53,7 @@ io.on('connection', (socket: Socket) => {
   const serverAddress = query['server-address'];
   const serverPort = query['server-port'];
 
-  if (apiKey && !serverAddress && !serverPort) {
+  if (apiKey && serverAddress && serverPort) {
     if (apiKey !== defaultApiKey) {
       socket.disconnect();
       console.log(`Reject incoming connection (invalid api key, server address, or server port)`);
