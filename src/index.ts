@@ -74,9 +74,11 @@ io.on('connection', (socket: Socket) => {
     const serverId = `${serverAddress}:${port}`;
     const exists = rooms.some((room) => room.roomCode_ === serverId);
     if (!exists) {
-      rooms.push(new RoomData(`${serverAddress}:${port}`));
+      rooms.push(new RoomData(serverId));
+      console.log(`Creating new room: ${serverId}`);
       // TODO: if no request is made from this apikey/server after some time, remove the room
     }
+    console.log(`Active rooms: ${JSON.stringify(rooms)}`);
   }
 
   // TODO: check for JWT from user?
