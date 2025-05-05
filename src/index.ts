@@ -211,8 +211,8 @@ const rooms: RoomData[] = [new RoomData('123')];
 io.on('connection', (socket: Socket) => {
   console.log('New user connected: ', socket.id);
 
-  socket.on('server-data', (data) => {
-    console.log(`Receiving server data .. ${JSON.stringify(data)}`);
+  socket.on('server-data', (data, data2) => {
+    console.log(`Receiving server data .. ${JSON.stringify(data)} .. ${JSON.stringify(data2)}`);
   });
 
   // Handle joining a room
