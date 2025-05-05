@@ -13,7 +13,6 @@ import {
   JoinRoomData,
   JwtAuthPayload,
   PlayerData,
-  PlayerDataTuple,
   RoomData,
   SteamIdTurnCredentialMap,
   SteamOpenIDParams,
