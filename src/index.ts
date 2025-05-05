@@ -211,6 +211,10 @@ const rooms: RoomData[] = [new RoomData('123')];
 io.on('connection', (socket: Socket) => {
   console.log('New user connected: ', socket.id);
 
+  socket.on('server-data', (data) => {
+    console.log(`Receiving server data .. ${JSON.stringify(data)}`);
+  });
+
   // Handle joining a room
   // TODO: steamId and clientId are the same right now
   socket.on('join-room', (data: JoinRoomData, callback: JoinRoomCallback) => {
