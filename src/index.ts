@@ -87,7 +87,7 @@ io.on('connection', (socket: Socket) => {
           console.log(`Setting ${serverId} map to ${mapName}`);
         }
       }
-      io.to(serverId).emit('map-change', mapName);
+      io.to(serverId).emit('current-map', mapName);
     });
   }
 
