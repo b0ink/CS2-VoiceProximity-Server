@@ -44,7 +44,7 @@ io.on('connection', (socket: Socket) => {
   const apiKey = query['api-key'];
   const serverAddress = query['server-address'];
   const serverPort = query['server-port'];
-
+  console.log(`Apikey: ${apiKey}, serverAddress: ${serverAddress}, serverPort: ${serverPort}`);
   if (apiKey && serverAddress && serverPort) {
     if (apiKey !== defaultApiKey) {
       socket.disconnect();
