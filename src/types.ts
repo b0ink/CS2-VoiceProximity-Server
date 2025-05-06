@@ -35,6 +35,7 @@ export class RoomData {
   roomCode_?: string = undefined;
   maxPlayers_?: number = 10;
   joinedPlayers: JoinedPlayers[] = [];
+  mapName?: string;
 
   constructor(roomCode: string, maxPlayers?: number) {
     this.roomCode_ = roomCode;

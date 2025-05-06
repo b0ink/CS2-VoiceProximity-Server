@@ -4,6 +4,7 @@ import path from 'path';
 dotenv.config({ path: path.resolve(__dirname, '.env') });
 
 const isProduction = process.env.NODE_ENV === 'production';
+const DEBUG = process.env.DEBUG || false;
 const port = Number(process.env.PORT) || 3000;
 const domain = process.env.DOMAIN_URL || 'localhost';
 
@@ -34,4 +35,5 @@ export {
   isProduction,
   jwtSecretKey,
   port,
+  DEBUG,
 };

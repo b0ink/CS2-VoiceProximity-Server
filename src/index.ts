@@ -3,7 +3,7 @@ import http from 'http';
 import jwt from 'jsonwebtoken';
 import path from 'path';
 import { Server, Socket } from 'socket.io';
-import { defaultApiKey, domain, jwtSecretKey, port } from './config';
+import { DEBUG, defaultApiKey, domain, jwtSecretKey, port } from './config';
 import getTurnCredential from './routes/get-turn-credential';
 import verifySteam from './routes/verify-steam';
 import { JoinedPlayers, JoinRoomCallback, JoinRoomData, JwtAuthPayload, RoomData } from './types';
@@ -73,10 +73,21 @@ io.on('connection', (socket: Socket) => {
 
     console.log(`Active rooms: ${JSON.stringify(rooms)}`);
 
-    socket.on('server-data', (from, data) => {
+    socket.on('player-positions', (from, data) => {
       // const sizeKb = Buffer.byteLength(data) / 1024;
       // console.log(`Data size: ${sizeKb.toFixed(2)} KB`);
       io.volatile.to(serverId).emit('player-positions', data);
+    });
+
+    socket.on('current-map', (from, mapName: string) => {
+      const room = rooms.find((room) => room.roomCode_ === serverId);
+      if (room) {
+        room.mapName = mapName;
+        if (DEBUG) {
+          console.log(`Setting ${serverId} map to ${mapName}`);
+        }
+      }
+      io.to(serverId).emit('map-change', mapName);
     });
   }
 
