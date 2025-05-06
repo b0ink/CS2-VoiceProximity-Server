@@ -125,9 +125,10 @@ io.on('connection', (socket: Socket) => {
       return callback({ success: false, message: 'Invalid room code' });
     }
 
-    const roomExists = rooms.some((room) => room.roomCode_ === data.roomCode);
+    // const roomExists = rooms.some((room) => room.roomCode_ === data.roomCode);
+    const room = rooms.find((room) => room.roomCode_ === data.roomCode);
 
-    if (!roomExists) {
+    if (!room) {
       console.log('room doesnt exist, notify the user to try again!');
       return callback({ success: false, message: 'Room does not exist' });
     }
@@ -135,11 +136,11 @@ io.on('connection', (socket: Socket) => {
     const newPlayer = new JoinedPlayers();
     newPlayer.socketId = socket.id;
     newPlayer.steamId = data.steamId;
-    rooms[0].joinedPlayers.push(newPlayer);
+    room.joinedPlayers.push(newPlayer);
 
     socket.join(data.roomCode);
 
-    callback({ success: true, message: 'Joining room' });
+    callback({ success: true, message: 'Joining room', mapName: room.mapName });
 
     console.log(
       `calling user-joined with ${socket.id} ${JSON.stringify({

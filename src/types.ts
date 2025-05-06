@@ -51,7 +51,11 @@ export interface JoinRoomData {
   isHost: boolean;
 }
 
-export type JoinRoomCallback = (response: { success: boolean; message: string }) => void;
+export type JoinRoomCallback = (response: {
+  success: boolean;
+  message: string;
+  mapName?: string;
+}) => void;
 
 export interface PlayerData {
   steamId: string;
