@@ -221,15 +221,15 @@ io.on('connection', (socket: Socket) => {
     // Notify other users in the room about the new user joining
     socket
       .to(data.roomCode)
-      .emit('user-joined', socket.id, { steamId: payload.steamId, clientId: payload.steamId });
+      .emit('user-joined', socket.id, { steamId: data.steamId, clientId: data.steamId });
 
     // Handle signaling (peer-to-peer connectio+ns)
     socket.on('signal', ({ to, data: signalData }) => {
-      console.log(`OnSIgnal: ${JSON.stringify(payload)}`);
+      console.log(`OnSIgnal: ${JSON.stringify(data)}`);
       io.to(to).emit('signal', {
         from: socket.id,
         data: signalData,
-        client: { steamId: payload.steamId, clientId: payload.steamId },
+        client: { steamId: data.steamId, clientId: data.steamId },
       });
     });
 
