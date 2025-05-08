@@ -108,7 +108,7 @@ io.on('connection', (socket: Socket) => {
       io.to(serverId).emit('current-map', mapName);
     });
 
-    setInterval(() => {
+    const interval = setInterval(() => {
       if (room.lastUpdateFromServer > 0 && Date.now() / 1000 - room.lastUpdateFromServer > 60) {
         if (DEBUG) {
           console.log('Destroying room');
@@ -117,10 +117,11 @@ io.on('connection', (socket: Socket) => {
         socket.disconnect();
         room.joinedPlayers = [];
         room.playersOnServer = [];
-        // rooms.splice(
-        //   rooms.findIndex((room) => room.roomCode_ === serverId),
-        //   1,
-        // );
+        rooms.splice(
+          rooms.findIndex((room) => room.roomCode_ === serverId),
+          1,
+        );
+        clearInterval(interval);
       }
     }, 1000);
   }
