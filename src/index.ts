@@ -101,12 +101,14 @@ io.on('connection', (socket: Socket) => {
     //TODO; capacity limits on joining room
     console.log('user joining room');
 
+    let payload: JwtAuthPayload;
+
     try {
       const verified = jwt.verify(data.token, jwtSecretKey, {
         audience: domain,
       });
-      const payload = verified as JwtAuthPayload;
-      if (!payload.steamId) {
+      payload = verified as JwtAuthPayload;
+      if (!payload.steamId || payload.steamId !== data.steamId) {
         throw new Error('Invalid steamId');
       }
     } catch (err) {
@@ -119,7 +121,7 @@ io.on('connection', (socket: Socket) => {
       }
     }
 
-    console.log(`joinRoom called with ${data.roomCode}, ${data.steamId}`);
+    console.log(`joinRoom called with ${data.roomCode}, ${payload.steamId}`);
     if (!data.roomCode) {
       // If no room is provided, ignore the join attempt.
       return callback({ success: false, message: 'Invalid room code' });
@@ -135,7 +137,7 @@ io.on('connection', (socket: Socket) => {
 
     const newPlayer = new JoinedPlayers();
     newPlayer.socketId = socket.id;
-    newPlayer.steamId = data.steamId;
+    newPlayer.steamId = payload.steamId;
     room.joinedPlayers.push(newPlayer);
 
     socket.join(data.roomCode);
@@ -144,22 +146,22 @@ io.on('connection', (socket: Socket) => {
 
     console.log(
       `calling user-joined with ${socket.id} ${JSON.stringify({
-        steamId: data.steamId,
-        clientId: data.steamId,
+        steamId: payload.steamId,
+        clientId: payload.steamId,
       })}`,
     );
 
     // Notify other users in the room about the new user joining
     socket
       .to(data.roomCode)
-      .emit('user-joined', socket.id, { steamId: data.steamId, clientId: data.steamId });
+      .emit('user-joined', socket.id, { steamId: payload.steamId, clientId: payload.steamId });
 
     // Handle signaling (peer-to-peer connectio+ns)
     socket.on('signal', ({ to, data: signalData }) => {
       io.to(to).emit('signal', {
         from: socket.id,
         data: signalData,
-        client: { steamId: data.steamId, clientId: data.steamId },
+        client: { steamId: payload.steamId, clientId: payload.steamId },
       });
     });
 
@@ -172,10 +174,10 @@ io.on('connection', (socket: Socket) => {
       for (const room of rooms) {
         room.joinedPlayers = room.joinedPlayers.filter((player) => player.socketId !== socket.id);
       }
-      console.log(`${socket.id} disconnected. Cleaning up.. ${data.steamId}`);
+      console.log(`${socket.id} disconnected. Cleaning up.. ${payload.steamId}`);
       socket
         .to(data.roomCode)
-        .emit('user-left', socket.id, { steamId: data.steamId, clientId: data.steamId });
+        .emit('user-left', socket.id, { steamId: payload.steamId, clientId: payload.steamId });
       socket.leave(data.roomCode); // Remove user from the room when they disconnect
     });
   });
