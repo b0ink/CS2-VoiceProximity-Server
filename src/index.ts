@@ -111,6 +111,11 @@ io.on('connection', (socket: Socket) => {
     setInterval(() => {
       if (room.lastUpdateFromServer > 0 && Date.now() / 1000 - room.lastUpdateFromServer > 60) {
         io.to(serverId).disconnectSockets();
+        socket.disconnect();
+        rooms.splice(
+          rooms.findIndex((room) => room.roomCode_ === serverId),
+          1,
+        );
       }
     }, 1000);
   }
