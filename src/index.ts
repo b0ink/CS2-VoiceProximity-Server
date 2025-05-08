@@ -225,6 +225,7 @@ io.on('connection', (socket: Socket) => {
 
     // Handle signaling (peer-to-peer connectio+ns)
     socket.on('signal', ({ to, data: signalData }) => {
+      console.log(`OnSIgnal: ${JSON.stringify(payload)}`);
       io.to(to).emit('signal', {
         from: socket.id,
         data: signalData,
