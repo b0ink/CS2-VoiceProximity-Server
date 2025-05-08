@@ -178,6 +178,22 @@ io.on('connection', (socket: Socket) => {
 
     callback({ success: true, message: 'Joining room', mapName: room.mapName });
 
+    // TODO: players won't be in room.playersOnServer during map changes, need to find a better way
+    // TODO: maybe this is a setting the server can enable, eg. "removeDisconnectedPlayersFromVoice"
+    // TODO: with the warning that long map changes (workshop downloads) will disconnect them and they need to rejoin the room again
+    // setInterval(() => {
+    //   if (room && room.playersOnServer.find((player) => player.SteamId == payload.steamId)) {
+    //     console.log('steamId is inside the room');
+    //   } else {
+    //     room.joinedPlayers = room.joinedPlayers.filter((player) => player.socketId !== socket.id);
+    //     socket
+    //       .to(data.roomCode)
+    //       .emit('user-left', socket.id, { steamId: payload.steamId, clientId: payload.steamId });
+    //     socket.leave(data.roomCode);
+    //     // TODO: disconnect client from any peer voice connections
+    //   }
+    // }, 1000);
+
     console.log(
       `calling user-joined with ${socket.id} ${JSON.stringify({
         steamId: payload.steamId,
