@@ -110,12 +110,17 @@ io.on('connection', (socket: Socket) => {
 
     setInterval(() => {
       if (room.lastUpdateFromServer > 0 && Date.now() / 1000 - room.lastUpdateFromServer > 60) {
+        if (DEBUG) {
+          console.log('Destroying room');
+        }
         io.to(serverId).disconnectSockets();
         socket.disconnect();
-        rooms.splice(
-          rooms.findIndex((room) => room.roomCode_ === serverId),
-          1,
-        );
+        room.joinedPlayers = [];
+        room.playersOnServer = [];
+        // rooms.splice(
+        //   rooms.findIndex((room) => room.roomCode_ === serverId),
+        //   1,
+        // );
       }
     }, 1000);
   }
