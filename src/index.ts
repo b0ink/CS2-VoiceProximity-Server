@@ -107,6 +107,12 @@ io.on('connection', (socket: Socket) => {
       }
       io.to(serverId).emit('current-map', mapName);
     });
+
+    setInterval(() => {
+      if (room.lastUpdateFromServer > 0 && Date.now() / 1000 - room.lastUpdateFromServer > 60) {
+        io.to(serverId).disconnectSockets();
+      }
+    }, 1000);
   }
 
   // TODO: check for JWT from user?
