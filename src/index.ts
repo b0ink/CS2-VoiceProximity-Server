@@ -6,7 +6,15 @@ import { Server, Socket } from 'socket.io';
 import { DEBUG, defaultApiKey, domain, jwtSecretKey, port } from './config';
 import getTurnCredential from './routes/get-turn-credential';
 import verifySteam from './routes/verify-steam';
-import { JoinedPlayers, JoinRoomCallback, JoinRoomData, JwtAuthPayload, RoomData } from './types';
+import {
+  JoinedPlayers,
+  JoinRoomCallback,
+  JoinRoomData,
+  JwtAuthPayload,
+  RoomData,
+  ServerPlayer,
+} from './types';
+import { decode } from '@msgpack/msgpack';
 
 const app = express();
 app.use(express.static(path.join(__dirname, '../src/public')));
@@ -64,9 +72,11 @@ io.on('connection', (socket: Socket) => {
     }
 
     const serverId = `${serverAddress}:${serverPort}`;
-    const exists = rooms.some((room) => room.roomCode_ === serverId);
-    if (!exists) {
-      rooms.push(new RoomData(serverId));
+    let room = rooms.find((room) => room.roomCode_ === serverId);
+
+    if (!room) {
+      room = new RoomData(serverId);
+      rooms.push(room);
       console.log(`Creating new room: ${serverId}`);
       // TODO: if no request is made from this apikey/server after some time, remove the room
     }
@@ -77,6 +87,14 @@ io.on('connection', (socket: Socket) => {
       // const sizeKb = Buffer.byteLength(data) / 1024;
       // console.log(`Data size: ${sizeKb.toFixed(2)} KB`);
       io.volatile.to(serverId).emit('player-positions', data);
+
+      const decoded = decode(new Uint8Array(data)) as [string, string][];
+      const minimalPlayerList = decoded.map(([SteamId, Name]) => ({
+        SteamId,
+        Name,
+      })) as ServerPlayer[];
+      room.playersOnServer = minimalPlayerList;
+      room.lastUpdateFromServer = Date.now() / 1000;
     });
 
     socket.on('current-map', (from, mapName: string) => {
@@ -102,13 +120,12 @@ io.on('connection', (socket: Socket) => {
     console.log('user joining room');
 
     let payload: JwtAuthPayload;
-
     try {
       const verified = jwt.verify(data.token, jwtSecretKey, {
         audience: domain,
       });
       payload = verified as JwtAuthPayload;
-      if (!payload.steamId || payload.steamId !== data.steamId) {
+      if (!payload.steamId || payload.steamId !== data.steamId || payload.steamId == '0') {
         throw new Error('Invalid steamId');
       }
     } catch (err) {
@@ -133,6 +150,23 @@ io.on('connection', (socket: Socket) => {
     if (!room) {
       console.log('room doesnt exist, notify the user to try again!');
       return callback({ success: false, message: 'Room does not exist' });
+    }
+
+    const joinedPlayer = room.playersOnServer.find((player) => player.SteamId === payload.steamId);
+    if (!joinedPlayer) {
+      if (DEBUG) {
+        console.log(
+          `Blocking join-room attempt from ${payload.steamId} because they are not on the server.`,
+        );
+      }
+
+      // Ensure the joining steamid is currently on the server
+      // This allows password protection of rooms to be handled by the server instead of the client
+      // (eg. set sv_password on the server)
+      return callback({
+        success: false,
+        message: 'You must be on the server before joining the room',
+      });
     }
 
     const newPlayer = new JoinedPlayers();

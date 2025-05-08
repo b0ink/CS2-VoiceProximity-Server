@@ -31,15 +31,23 @@ export class JoinedPlayers {
   socketId: string | null = null;
   steamId: string | null = null;
 }
+
+export interface ServerPlayer {
+  Name: string;
+  SteamId: string;
+}
 export class RoomData {
   roomCode_?: string = undefined;
   maxPlayers_?: number = 10;
-  joinedPlayers: JoinedPlayers[] = [];
+  joinedPlayers: JoinedPlayers[] = []; // active peer connections
+  playersOnServer: ServerPlayer[] = []; // players actually on the cs2 server'
+  lastUpdateFromServer: number;
   mapName?: string;
 
   constructor(roomCode: string, maxPlayers?: number) {
     this.roomCode_ = roomCode;
     this.maxPlayers_ = maxPlayers;
+    this.lastUpdateFromServer = Date.now() / 1000;
   }
 }
 
