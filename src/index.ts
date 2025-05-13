@@ -155,6 +155,17 @@ io.on('connection', (socket: Socket) => {
       }
     }
 
+    const steamIdAlreadyInARoom = rooms.some((room) =>
+      room.joinedPlayers.some((player) => player.steamId === payload.steamId),
+    );
+
+    if (steamIdAlreadyInARoom) {
+      return callback({
+        success: false,
+        message: 'This account is already connected to a room on another device.',
+      });
+    }
+
     console.log(`joinRoom called with ${data.roomCode}, ${payload.steamId}`);
     if (!data.roomCode) {
       // If no room is provided, ignore the join attempt.
