@@ -86,7 +86,7 @@ io.on('connection', (socket: Socket) => {
     socket.on('player-positions', (from, data) => {
       // const sizeKb = Buffer.byteLength(data) / 1024;
       // console.log(`Data size: ${sizeKb.toFixed(2)} KB`);
-      io.volatile.to(serverId).emit('player-positions', data);
+      io.volatile.to(serverId).volatile.emit('player-positions', data);
 
       const decoded = decode(new Uint8Array(data)) as [string, string][];
       const minimalPlayerList = decoded.map(([SteamId, Name]) => ({
