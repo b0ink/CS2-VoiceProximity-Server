@@ -84,8 +84,10 @@ io.on('connection', (socket: Socket) => {
     console.log(`Active rooms: ${JSON.stringify(rooms)}`);
 
     socket.on('player-positions', (from, data) => {
-      // const sizeKb = Buffer.byteLength(data) / 1024;
-      // console.log(`Data size: ${sizeKb.toFixed(2)} KB`);
+      if (DEBUG) {
+        const sizeKb = Buffer.byteLength(data) / 1024;
+        console.log(`Data size: ${sizeKb.toFixed(2)} KB`);
+      }
       io.volatile.to(serverId).volatile.emit('player-positions', data);
 
       const decoded = decode(new Uint8Array(data)) as [string, string][];
