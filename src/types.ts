@@ -13,6 +13,7 @@ export interface SteamOpenIDParams {
 
 export interface Client {
   steamId: string;
+  clientId: string;
 }
 
 export interface JwtAuthPayload {

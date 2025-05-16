@@ -214,6 +214,11 @@ io.on('connection', (socket: Socket) => {
       joinedClients: room.clients,
     });
 
+    room.clients.set(socket.id, {
+      steamId: payload.steamId,
+      clientId: payload.steamId,
+    });
+
     // TODO: players won't be in room.playersOnServer during map changes, need to find a better way
     // TODO: maybe this is a setting the server can enable, eg. "removeDisconnectedPlayersFromVoice"
     // TODO: with the warning that long map changes (workshop downloads) will disconnect them and they need to rejoin the room again
