@@ -149,7 +149,7 @@ io.on('connection', (socket: Socket) => {
     console.log('user joining room');
 
     // TODO: pull the latest version from the latest github release
-    if (ua !== 'CS2VoiceProximity/0.1.11-alpha.0') {
+    if (ua !== 'CS2VoiceProximity/0.1.12-alpha.0') {
       return callback({
         success: false,
         message: 'Your client version is outdated. Please update before joining the room.',
