@@ -211,13 +211,15 @@ io.on('connection', (socket: Socket) => {
       success: true,
       message: 'Joining room',
       mapName: room.mapName,
-      joinedClients: room.clients,
+      joinedClients: Object.fromEntries(room.clients),
     });
 
     room.clients.set(socket.id, {
       steamId: payload.steamId,
       clientId: payload.steamId,
     });
+
+    console.log(JSON.stringify(room));
 
     // TODO: players won't be in room.playersOnServer during map changes, need to find a better way
     // TODO: maybe this is a setting the server can enable, eg. "removeDisconnectedPlayersFromVoice"

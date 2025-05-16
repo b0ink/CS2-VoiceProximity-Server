@@ -70,7 +70,7 @@ export type JoinRoomCallback = (response: {
   success: boolean;
   message: string;
   mapName?: string;
-  joinedClients?: Map<string, Client>;
+  joinedClients?: { [key: string]: Client };
 }) => void;
 
 export interface PlayerData {
