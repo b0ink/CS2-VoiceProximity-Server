@@ -1,7 +1,9 @@
+import { decode } from '@msgpack/msgpack';
 import express, { Request, Response } from 'express';
 import http from 'http';
 import jwt from 'jsonwebtoken';
 import path from 'path';
+import semver from 'semver';
 import { Server, Socket } from 'socket.io';
 import { DEBUG, defaultApiKey, domain, jwtSecretKey, port } from './config';
 import getTurnCredential from './routes/get-turn-credential';
@@ -15,7 +17,6 @@ import {
   ServerPlayer,
   Signal,
 } from './types';
-import { decode } from '@msgpack/msgpack';
 
 const app = express();
 app.use(express.static(path.join(__dirname, '../src/public')));
@@ -28,6 +29,9 @@ app.use('/', verifySteam);
 app.use('/', getTurnCredential);
 
 const server = http.createServer(app);
+
+// TODO: pull the latest version from the latest github release
+const MINIMUM_CLIENT_VERSION = '0.1.12-alpha.1';
 
 const io = new Server(server, {
   cors: {
@@ -148,8 +152,8 @@ io.on('connection', (socket: Socket) => {
     //TODO; capacity limits on joining room
     console.log('user joining room');
 
-    // TODO: pull the latest version from the latest github release
-    if (ua !== 'CS2VoiceProximity/0.1.12-alpha.0') {
+    const clientVersion = ua?.split('CS2VoiceProximity/')[0];
+    if (!clientVersion || !semver.satisfies(clientVersion, `>=${MINIMUM_CLIENT_VERSION}`)) {
       return callback({
         success: false,
         message: 'Your client version is outdated. Please update before joining the room.',
