@@ -13,6 +13,7 @@ import {
   JwtAuthPayload,
   RoomData,
   ServerPlayer,
+  Signal,
 } from './types';
 import { decode } from '@msgpack/msgpack';
 
@@ -206,7 +207,12 @@ io.on('connection', (socket: Socket) => {
 
     socket.join(data.roomCode);
 
-    callback({ success: true, message: 'Joining room', mapName: room.mapName });
+    callback({
+      success: true,
+      message: 'Joining room',
+      mapName: room.mapName,
+      joinedClients: room.clients,
+    });
 
     // TODO: players won't be in room.playersOnServer during map changes, need to find a better way
     // TODO: maybe this is a setting the server can enable, eg. "removeDisconnectedPlayersFromVoice"
@@ -232,12 +238,13 @@ io.on('connection', (socket: Socket) => {
     );
 
     // Notify other users in the room about the new user joining
-    socket
-      .to(data.roomCode)
-      .emit('user-joined', socket.id, { steamId: data.steamId, clientId: data.steamId });
-
+    socket.broadcast.to(data.roomCode).emit('user-joined', socket.id, {
+      steamId: data.steamId,
+      clientId: data.steamId,
+    });
     // Handle signaling (peer-to-peer connectio+ns)
-    socket.on('signal', ({ to, data: signalData }) => {
+    socket.on('signal', (signal: Signal) => {
+      const { to, data: signalData } = signal;
       console.log(`OnSIgnal: ${JSON.stringify(data)}`);
       io.to(to).emit('signal', {
         from: socket.id,
@@ -254,6 +261,7 @@ io.on('connection', (socket: Socket) => {
       // Evict player object
       for (const room of rooms) {
         room.joinedPlayers = room.joinedPlayers.filter((player) => player.socketId !== socket.id);
+        room.clients.delete(socket.id);
       }
       console.log(`${socket.id} disconnected. Cleaning up.. ${payload.steamId}`);
       socket

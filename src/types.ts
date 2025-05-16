@@ -11,6 +11,10 @@ export interface SteamOpenIDParams {
   sig?: string;
 }
 
+export interface Client {
+  steamId: string;
+}
+
 export interface JwtAuthPayload {
   steamId?: string;
   exp?: number;
@@ -43,8 +47,10 @@ export class RoomData {
   playersOnServer: ServerPlayer[] = []; // players actually on the cs2 server'
   lastUpdateFromServer: number;
   mapName?: string;
+  clients: Map<string, Client>;
 
   constructor(roomCode: string, maxPlayers?: number) {
+    this.clients = new Map<string, Client>();
     this.roomCode_ = roomCode;
     this.maxPlayers_ = maxPlayers;
     this.lastUpdateFromServer = Date.now() / 1000;
@@ -63,6 +69,7 @@ export type JoinRoomCallback = (response: {
   success: boolean;
   message: string;
   mapName?: string;
+  joinedClients?: Map<string, Client>;
 }) => void;
 
 export interface PlayerData {
@@ -72,4 +79,9 @@ export interface PlayerData {
   lookAt: { x: number; y: number; z: number };
   team: number;
   isAlive: boolean;
+}
+
+export interface Signal {
+  data: string;
+  to: string;
 }
