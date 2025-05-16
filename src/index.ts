@@ -31,7 +31,7 @@ app.use('/', getTurnCredential);
 const server = http.createServer(app);
 
 // TODO: pull the latest version from the latest github release
-const MINIMUM_CLIENT_VERSION = '0.1.12-alpha.1';
+const MINIMUM_CLIENT_VERSION = '0.1.12-alpha.0';
 
 const io = new Server(server, {
   cors: {
@@ -152,7 +152,7 @@ io.on('connection', (socket: Socket) => {
     //TODO; capacity limits on joining room
     console.log('user joining room');
 
-    const clientVersion = ua?.split('CS2VoiceProximity/')[0];
+    const clientVersion = ua?.split('CS2VoiceProximity/')[1];
     if (!clientVersion || !semver.satisfies(clientVersion, `>=${MINIMUM_CLIENT_VERSION}`)) {
       return callback({
         success: false,
