@@ -86,8 +86,8 @@ io.on('connection', (socket: Socket) => {
 
     socket.on('player-positions', (from, data) => {
       if (DEBUG) {
-        const sizeKb = Buffer.byteLength(data) / 1024;
-        console.log(`Data size: ${sizeKb.toFixed(2)} KB`);
+        // const sizeKb = Buffer.byteLength(data) / 1024;
+        // console.log(`Data size: ${sizeKb.toFixed(2)} KB`);
       }
       io.volatile.to(serverId).volatile.emit('player-positions', data);
 
@@ -96,6 +96,14 @@ io.on('connection', (socket: Socket) => {
         SteamId,
         Name,
       })) as ServerPlayer[];
+      for (const player of minimalPlayerList) {
+        const playerPeer = room.joinedPlayers.find((plr) => plr.steamId === player.SteamId);
+        if (playerPeer) {
+          playerPeer.lastTimeOnServer = Date.now() / 1000;
+        } else {
+          // TODO: remove them from the array to save on bandwidth
+        }
+      }
       room.playersOnServer = minimalPlayerList;
       room.lastUpdateFromServer = Date.now() / 1000;
     });
@@ -221,21 +229,26 @@ io.on('connection', (socket: Socket) => {
 
     console.log(JSON.stringify(room));
 
-    // TODO: players won't be in room.playersOnServer during map changes, need to find a better way
-    // TODO: maybe this is a setting the server can enable, eg. "removeDisconnectedPlayersFromVoice"
-    // TODO: with the warning that long map changes (workshop downloads) will disconnect them and they need to rejoin the room again
-    // setInterval(() => {
-    //   if (room && room.playersOnServer.find((player) => player.SteamId == payload.steamId)) {
-    //     console.log('steamId is inside the room');
-    //   } else {
-    //     room.joinedPlayers = room.joinedPlayers.filter((player) => player.socketId !== socket.id);
-    //     socket
-    //       .to(data.roomCode)
-    //       .emit('user-left', socket.id, { steamId: payload.steamId, clientId: payload.steamId });
-    //     socket.leave(data.roomCode);
-    //     // TODO: disconnect client from any peer voice connections
-    //   }
-    // }, 1000);
+    const interval = setInterval(() => {
+      const player = room.joinedPlayers.find((plr) => plr.steamId === payload.steamId);
+      if (!player) {
+        clearInterval(interval);
+        return;
+      }
+      // TODO: warning that long map changes (workshop downloads) will disconnect them and they need to rejoin the room again
+      if (player.lastTimeOnServer > 0 && Date.now() / 1000 - player.lastTimeOnServer > 60) {
+        if (DEBUG) {
+          console.log('Disconnecting player');
+        }
+        room.joinedPlayers = room.joinedPlayers.filter((player) => player.socketId !== socket.id);
+        socket
+          .to(data.roomCode)
+          .emit('user-left', socket.id, { steamId: payload.steamId, clientId: payload.steamId });
+        socket.leave(data.roomCode);
+        socket.disconnect();
+        clearInterval(interval);
+      }
+    }, 1000);
 
     console.log(
       `calling user-joined with ${socket.id} ${JSON.stringify({

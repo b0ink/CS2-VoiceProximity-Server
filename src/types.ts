@@ -35,6 +35,7 @@ export interface SteamIdTurnCredentialMap {
 export class JoinedPlayers {
   socketId: string | null = null;
   steamId: string | null = null;
+  lastTimeOnServer: number = Date.now() / 1000;
 }
 
 export interface ServerPlayer {
