@@ -43,7 +43,8 @@ const testDefaultRoom = '123';
 const rooms: RoomData[] = [new RoomData(testDefaultRoom)];
 
 io.on('connection', (socket: Socket) => {
-  // const ua = socket.handshake.headers['user-agent'];
+  const ua = socket.handshake.headers['user-agent'];
+
   // const lang = socket.handshake.headers['accept-language'];
   // console.log('User-Agent:', ua);
   // console.log('Accept-Language:', lang);
@@ -146,6 +147,14 @@ io.on('connection', (socket: Socket) => {
   socket.on('join-room', (data: JoinRoomData, callback: JoinRoomCallback) => {
     //TODO; capacity limits on joining room
     console.log('user joining room');
+
+    // TODO: pull the latest version from the latest github release
+    if (ua !== 'CS2VoiceProximity/0.1.11-alpha.0') {
+      return callback({
+        success: false,
+        message: 'Your client version is outdated. Please update before joining the room.',
+      });
+    }
 
     let payload: JwtAuthPayload;
     try {
