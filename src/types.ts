@@ -87,3 +87,9 @@ export interface Signal {
   data: string;
   to: string;
 }
+
+export interface ServerConfigData {
+  deadPlayerMuteDelay: number; // seconds before players are muted after dying
+  allowDeadTeamVoice: boolean; // can dead teammates communicate to each other
+  allowSpectatorC4Voice: boolean; // can dead players speak when spectating C4
+}

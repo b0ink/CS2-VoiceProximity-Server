@@ -14,6 +14,7 @@ import {
   JoinRoomData,
   JwtAuthPayload,
   RoomData,
+  ServerConfigData,
   ServerPlayer,
   Signal,
 } from './types';
@@ -90,6 +91,11 @@ io.on('connection', (socket: Socket) => {
     }
 
     console.log(`Active rooms: ${JSON.stringify(rooms)}`);
+
+    socket.on('server-config', (data: ServerConfigData) => {
+      console.log(data);
+      io.to(serverId).emit('server-config', data);
+    });
 
     socket.on('player-positions', (from, data) => {
       if (DEBUG) {
