@@ -59,6 +59,8 @@ io.on('connection', (socket: Socket) => {
   const serverAddress = query['server-address'];
   const serverPort = query['server-port'];
   console.log(`Apikey: ${apiKey}, serverAddress: ${serverAddress}, serverPort: ${serverPort}`);
+  let inactiveServerCheck: NodeJS.Timeout;
+
   if (apiKey && serverAddress && serverPort) {
     if (apiKey !== defaultApiKey) {
       socket.disconnect();
@@ -124,7 +126,7 @@ io.on('connection', (socket: Socket) => {
       io.to(serverId).emit('current-map', mapName);
     });
 
-    const interval = setInterval(() => {
+    inactiveServerCheck = setInterval(() => {
       if (room.lastUpdateFromServer > 0 && Date.now() / 1000 - room.lastUpdateFromServer > 60) {
         if (DEBUG) {
           console.log('Destroying room');
@@ -137,7 +139,7 @@ io.on('connection', (socket: Socket) => {
           rooms.findIndex((room) => room.roomCode_ === serverId),
           1,
         );
-        clearInterval(interval);
+        clearInterval(inactiveServerCheck);
       }
     }, 1000);
   }
@@ -145,6 +147,45 @@ io.on('connection', (socket: Socket) => {
   // TODO: check for JWT from user?
 
   console.log(`New user connected: ${socket.id} | ${apiKey}`);
+
+  const authToken = socket.handshake.auth.token;
+
+  if (!authToken && !apiKey) {
+    socket.disconnect();
+    return;
+  }
+
+  // TODO: combine the two jwt verifications (one on socket connection, other in join-room check)
+  let socketAuthPayload: JwtAuthPayload;
+  try {
+    const verified = jwt.verify(authToken, jwtSecretKey, {
+      audience: domain,
+    });
+    socketAuthPayload = verified as JwtAuthPayload;
+    if (!socketAuthPayload.steamId || socketAuthPayload.steamId == '0') {
+      socket.disconnect();
+      throw new Error('Invalid steamId');
+    }
+  } catch (err) {
+    console.log(`Failed to verify jwt: ${err}`);
+  }
+
+  const userOnServerCheck = setInterval(() => {
+    console.log('checking if user is on server');
+    console.log(socketAuthPayload.steamId);
+
+    console.log(rooms);
+    const room = rooms.find((room) => {
+      const onServer = room.playersOnServer.some((p) => p.SteamId === socketAuthPayload.steamId);
+      const joinedRoom = room.joinedPlayers.some((p) => p.steamId === socketAuthPayload.steamId);
+      return onServer && !joinedRoom;
+    });
+
+    // SteamId is connected to the CS2 server but they havent joined the room yet
+    if (room) {
+      socket.emit('player-on-server', { roomCode: room.roomCode_ });
+    }
+  }, 5000);
 
   // Handle joining a room
   // TODO: steamId and clientId are the same right now
@@ -242,10 +283,10 @@ io.on('connection', (socket: Socket) => {
 
     console.log(JSON.stringify(room));
 
-    const interval = setInterval(() => {
+    const disconnectedPlayerCheck = setInterval(() => {
       const player = room.joinedPlayers.find((plr) => plr.steamId === payload.steamId);
       if (!player) {
-        clearInterval(interval);
+        clearInterval(disconnectedPlayerCheck);
         return;
       }
       // TODO: warning that long map changes (workshop downloads) will disconnect them and they need to rejoin the room again
@@ -259,7 +300,7 @@ io.on('connection', (socket: Socket) => {
           .emit('user-left', socket.id, { steamId: payload.steamId, clientId: payload.steamId });
         socket.leave(data.roomCode);
         socket.disconnect();
-        clearInterval(interval);
+        clearInterval(disconnectedPlayerCheck);
       }
     }, 1000);
 
@@ -292,6 +333,11 @@ io.on('connection', (socket: Socket) => {
     socket.on('disconnect', () => {
       //TODO: remove them from the joinedPLayers array
       // Evict player object
+
+      clearInterval(userOnServerCheck);
+      clearInterval(disconnectedPlayerCheck);
+      clearInterval(inactiveServerCheck);
+
       for (const room of rooms) {
         room.joinedPlayers = room.joinedPlayers.filter((player) => player.socketId !== socket.id);
         room.clients.delete(socket.id);
