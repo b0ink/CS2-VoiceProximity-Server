@@ -50,6 +50,11 @@ export class RoomData {
   lastUpdateFromServer: number;
   mapName?: string;
   clients: Map<string, Client>;
+  serverConfig: ServerConfigData = {
+    deadPlayerMuteDelay: 1000,
+    allowDeadTeamVoice: true,
+    allowSpectatorC4Voice: true,
+  };
 
   constructor(roomCode: string, maxPlayers?: number) {
     this.clients = new Map<string, Client>();
