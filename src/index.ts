@@ -178,10 +178,8 @@ io.on('connection', (socket: Socket) => {
       const room = rooms.find((room) => {
         const onServer = room.playersOnServer.some((p) => p.SteamId === socketAuthPayload.steamId);
         const joinedRoom = room.joinedPlayers.some((p) => p.steamId === socketAuthPayload.steamId);
-        console.log(`on server? ${onServer}, joinedroom?: ${joinedRoom}`);
         return onServer && !joinedRoom;
       });
-      console.log(`found room? ${room}`);
 
       // SteamId is connected to the CS2 server but they havent joined the room yet
       if (room) {
