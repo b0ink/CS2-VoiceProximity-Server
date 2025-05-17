@@ -170,22 +170,23 @@ io.on('connection', (socket: Socket) => {
     console.log(`Failed to verify jwt: ${err}`);
   }
 
-  const userOnServerCheck = setInterval(() => {
-    console.log('checking if user is on server');
-    console.log(socketAuthPayload.steamId);
+  //
+  let userOnServerCheck: NodeJS.Timeout;
+  if (authToken) {
+    // Don't run interval if this is a connection from cs2 server
+    userOnServerCheck = setInterval(() => {
+      const room = rooms.find((room) => {
+        const onServer = room.playersOnServer.some((p) => p.SteamId === socketAuthPayload.steamId);
+        const joinedRoom = room.joinedPlayers.some((p) => p.steamId === socketAuthPayload.steamId);
+        return onServer && !joinedRoom;
+      });
 
-    console.log(rooms);
-    const room = rooms.find((room) => {
-      const onServer = room.playersOnServer.some((p) => p.SteamId === socketAuthPayload.steamId);
-      const joinedRoom = room.joinedPlayers.some((p) => p.steamId === socketAuthPayload.steamId);
-      return onServer && !joinedRoom;
-    });
-
-    // SteamId is connected to the CS2 server but they havent joined the room yet
-    if (room) {
-      socket.emit('player-on-server', { roomCode: room.roomCode_ });
-    }
-  }, 5000);
+      // SteamId is connected to the CS2 server but they havent joined the room yet
+      if (room) {
+        socket.emit('player-on-server', { roomCode: room.roomCode_ });
+      }
+    }, 5000);
+  }
 
   // Handle joining a room
   // TODO: steamId and clientId are the same right now
