@@ -155,24 +155,24 @@ io.on('connection', (socket: Socket) => {
     return;
   }
 
-  // TODO: combine the two jwt verifications (one on socket connection, other in join-room check)
-  let socketAuthPayload: JwtAuthPayload;
-  try {
-    const verified = jwt.verify(authToken, jwtSecretKey, {
-      audience: domain,
-    });
-    socketAuthPayload = verified as JwtAuthPayload;
-    if (!socketAuthPayload.steamId || socketAuthPayload.steamId == '0') {
-      socket.disconnect();
-      throw new Error('Invalid steamId');
-    }
-  } catch (err) {
-    console.log(`Failed to verify jwt: ${err}`);
-  }
-
   //
   let userOnServerCheck: NodeJS.Timeout;
   if (authToken) {
+    // TODO: combine the two jwt verifications (one on socket connection, other in join-room check)
+    let socketAuthPayload: JwtAuthPayload;
+    try {
+      const verified = jwt.verify(authToken, jwtSecretKey, {
+        audience: domain,
+      });
+      socketAuthPayload = verified as JwtAuthPayload;
+      if (!socketAuthPayload.steamId || socketAuthPayload.steamId == '0') {
+        socket.disconnect();
+        throw new Error('Invalid steamId');
+      }
+    } catch (err) {
+      console.log(`Failed to verify jwt: ${err}`);
+    }
+
     // Don't run interval if this is a connection from cs2 server
     userOnServerCheck = setInterval(() => {
       const room = rooms.find((room) => {
