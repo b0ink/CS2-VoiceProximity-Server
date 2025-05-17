@@ -150,10 +150,10 @@ io.on('connection', (socket: Socket) => {
 
   const authToken = socket.handshake.auth.token;
 
-  if (!authToken && !apiKey) {
-    socket.disconnect();
-    return;
-  }
+  // if (!authToken && !apiKey) {
+  //   socket.disconnect();
+  //   return;
+  // }
 
   //
   let userOnServerCheck: NodeJS.Timeout;
