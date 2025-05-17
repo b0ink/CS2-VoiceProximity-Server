@@ -159,33 +159,39 @@ io.on('connection', (socket: Socket) => {
   let userOnServerCheck: NodeJS.Timeout;
   if (authToken) {
     // TODO: combine the two jwt verifications (one on socket connection, other in join-room check)
-    let socketAuthPayload: JwtAuthPayload;
+    let socketAuthPayload: JwtAuthPayload | null = null;
     try {
       const verified = jwt.verify(authToken, jwtSecretKey, {
         audience: domain,
       });
       socketAuthPayload = verified as JwtAuthPayload;
-      if (!socketAuthPayload.steamId || socketAuthPayload.steamId == '0') {
-        socket.disconnect();
-        throw new Error('Invalid steamId');
-      }
+      // if (!socketAuthPayload.steamId || socketAuthPayload.steamId == '0') {
+      //   socket.disconnect();
+      //   throw new Error('Invalid steamId');
+      // }
     } catch (err) {
       console.log(`Failed to verify jwt: ${err}`);
     }
 
-    // Don't run interval if this is a connection from cs2 server
-    userOnServerCheck = setInterval(() => {
-      const room = rooms.find((room) => {
-        const onServer = room.playersOnServer.some((p) => p.SteamId === socketAuthPayload.steamId);
-        const joinedRoom = room.joinedPlayers.some((p) => p.steamId === socketAuthPayload.steamId);
-        return onServer && !joinedRoom;
-      });
+    if (socketAuthPayload && socketAuthPayload.steamId) {
+      // Don't run interval if this is a connection from cs2 server
+      userOnServerCheck = setInterval(() => {
+        const room = rooms.find((room) => {
+          const onServer = room.playersOnServer.some(
+            (p) => p.SteamId === socketAuthPayload.steamId,
+          );
+          const joinedRoom = room.joinedPlayers.some(
+            (p) => p.steamId === socketAuthPayload.steamId,
+          );
+          return onServer && !joinedRoom;
+        });
 
-      // SteamId is connected to the CS2 server but they havent joined the room yet
-      if (room) {
-        socket.emit('player-on-server', { roomCode: room.roomCode_ });
-      }
-    }, 5000);
+        // SteamId is connected to the CS2 server but they havent joined the room yet
+        if (room) {
+          socket.emit('player-on-server', { roomCode: room.roomCode_ });
+        }
+      }, 5000);
+    }
   }
 
   // Handle joining a room
