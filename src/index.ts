@@ -14,6 +14,7 @@ import {
   JoinRoomData,
   JwtAuthPayload,
   RoomData,
+  ServerConfigData,
   ServerPlayer,
   Signal,
 } from './types';
@@ -91,17 +92,14 @@ io.on('connection', (socket: Socket) => {
 
     console.log(`Active rooms: ${JSON.stringify(rooms)}`);
 
-    socket.on('server-config', (from, data) => {
-      console.log(data);
-      const decoded = decode(new Uint8Array(data)) as [number, boolean, boolean];
-      console.log('Decoded type:', typeof decoded);
-      console.log('Decoded value:', decoded);
-      const [deadPlayerMuteDelay, allowDeadTeamVoice, allowSpectatorC4Voice] = decoded;
-      room.serverConfig = {
-        deadPlayerMuteDelay,
-        allowDeadTeamVoice,
-        allowSpectatorC4Voice,
+    socket.on('server-config', (from: string, data: Buffer) => {
+      const raw = decode(new Uint8Array(data)) as Record<string, unknown>;
+      const decoded: ServerConfigData = {
+        deadPlayerMuteDelay: raw.DeadPlayerMuteDelay as number,
+        allowDeadTeamVoice: raw.AllowDeadTeamVoice as boolean,
+        allowSpectatorC4Voice: raw.AllowSpectatorC4Voice as boolean,
       };
+      room.serverConfig = decoded;
       if (DEBUG) {
         console.log(room.serverConfig);
       }
