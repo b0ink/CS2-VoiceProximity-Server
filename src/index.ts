@@ -216,6 +216,7 @@ io.on('connection', (socket: Socket) => {
 
     const clientVersion = ua?.split('CS2VoiceProximity/')[1];
     if (!clientVersion || !semver.satisfies(clientVersion, `>=${MINIMUM_CLIENT_VERSION}`)) {
+      console.log(`Checking clients version: ${clientVersion} with ${MINIMUM_CLIENT_VERSION}`);
       return callback({
         success: false,
         message: 'Your client version is outdated. Please update before joining the room.',
