@@ -299,6 +299,7 @@ io.on('connection', (socket: Socket) => {
       message: 'Joining room',
       mapName: room.mapName,
       joinedClients: Object.fromEntries(room.clients),
+      serverConfig: room.serverConfig,
     });
 
     room.clients.set(socket.id, {

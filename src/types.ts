@@ -77,6 +77,7 @@ export type JoinRoomCallback = (response: {
   message: string;
   mapName?: string;
   joinedClients?: { [key: string]: Client };
+  serverConfig?: ServerConfigData;
 }) => void;
 
 export interface PlayerData {
