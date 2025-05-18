@@ -215,7 +215,10 @@ io.on('connection', (socket: Socket) => {
     console.log('user joining room');
 
     const clientVersion = ua?.split('CS2VoiceProximity/')[1];
-    if (!clientVersion || !semver.satisfies(clientVersion, `>=${MINIMUM_CLIENT_VERSION}`)) {
+    if (
+      !clientVersion ||
+      !semver.satisfies(clientVersion, `>=${MINIMUM_CLIENT_VERSION}`, { includePrerelease: true })
+    ) {
       console.log(`Checking clients version: ${clientVersion} with ${MINIMUM_CLIENT_VERSION}`);
       return callback({
         success: false,
