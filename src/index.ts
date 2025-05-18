@@ -246,16 +246,16 @@ io.on('connection', (socket: Socket) => {
       }
     }
 
-    // const steamIdAlreadyInARoom = rooms.some((room) =>
-    //   room.joinedPlayers.some((player) => player.steamId === payload.steamId),
-    // );
+    const steamIdAlreadyInARoom = rooms.some((room) =>
+      room.joinedPlayers.some((player) => player.steamId === payload.steamId),
+    );
 
-    // if (steamIdAlreadyInARoom) {
-    //   return callback({
-    //     success: false,
-    //     message: 'This account is already connected to a room on another device.',
-    //   });
-    // }
+    if (steamIdAlreadyInARoom) {
+      return callback({
+        success: false,
+        message: 'This account is already connected to a room on another device.',
+      });
+    }
 
     console.log(`joinRoom called with ${data.roomCode}, ${payload.steamId}`);
     if (!data.roomCode) {
@@ -282,10 +282,10 @@ io.on('connection', (socket: Socket) => {
       // Ensure the joining steamid is currently on the server
       // This allows password protection of rooms to be handled by the server instead of the client
       // (eg. set sv_password on the server)
-      // return callback({
-      //   success: false,
-      //   message: 'You must be on the server before joining the room',
-      // });
+      return callback({
+        success: false,
+        message: 'You must be on the server before joining the room',
+      });
     }
 
     const newPlayer = new JoinedPlayers();
