@@ -94,6 +94,8 @@ io.on('connection', (socket: Socket) => {
     socket.on('server-config', (from, data) => {
       console.log(data);
       const decoded = decode(new Uint8Array(data)) as [number, boolean, boolean];
+      console.log('Decoded type:', typeof decoded);
+      console.log('Decoded value:', decoded);
       const [deadPlayerMuteDelay, allowDeadTeamVoice, allowSpectatorC4Voice] = decoded;
       room.serverConfig = {
         deadPlayerMuteDelay,
