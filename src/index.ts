@@ -282,10 +282,10 @@ io.on('connection', (socket: Socket) => {
       // Ensure the joining steamid is currently on the server
       // This allows password protection of rooms to be handled by the server instead of the client
       // (eg. set sv_password on the server)
-      return callback({
-        success: false,
-        message: 'You must be on the server before joining the room',
-      });
+      // return callback({
+      //   success: false,
+      //   message: 'You must be on the server before joining the room',
+      // });
     }
 
     const newPlayer = new JoinedPlayers();
