@@ -91,8 +91,8 @@ io.on('connection', (socket: Socket) => {
 
     console.log(`Active rooms: ${JSON.stringify(rooms)}`);
 
-    socket.on('server-config', (from, data: Uint8Array) => {
-      const decoded = decode(data) as [number, boolean, boolean];
+    socket.on('server-config', (from, data) => {
+      const decoded = decode(new Uint8Array(data)) as [number, boolean, boolean];
       const [deadPlayerMuteDelay, allowDeadTeamVoice, allowSpectatorC4Voice] = decoded;
       room.serverConfig = {
         deadPlayerMuteDelay,
