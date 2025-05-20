@@ -32,7 +32,7 @@ app.use('/', getTurnCredential);
 const server = http.createServer(app);
 
 // TODO: pull the latest version from the latest github release
-const MINIMUM_CLIENT_VERSION = '0.1.20-alpha.0';
+const MINIMUM_CLIENT_VERSION = '0.1.21-alpha.0';
 
 const io = new Server(server, {
   cors: {
