@@ -14,6 +14,7 @@ export interface SteamOpenIDParams {
 export interface Client {
   steamId: string;
   clientId: string;
+  isMuted: boolean;
 }
 
 export interface JwtAuthPayload {
@@ -70,6 +71,7 @@ export interface JoinRoomData {
   steamId: string;
   clientId: string;
   isHost: boolean;
+  isMuted: boolean;
 }
 
 export type JoinRoomCallback = (response: {

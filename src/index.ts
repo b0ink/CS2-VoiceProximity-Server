@@ -306,6 +306,7 @@ io.on('connection', (socket: Socket) => {
     room.clients.set(socket.id, {
       steamId: payload.steamId,
       clientId: payload.steamId,
+      isMuted: data.isMuted,
     });
 
     console.log(JSON.stringify(room));
@@ -339,10 +340,7 @@ io.on('connection', (socket: Socket) => {
     );
 
     // Notify other users in the room about the new user joining
-    socket.broadcast.to(data.roomCode).emit('user-joined', socket.id, {
-      steamId: data.steamId,
-      clientId: data.steamId,
-    });
+    socket.broadcast.to(data.roomCode).emit('user-joined', socket.id, room.clients.get(socket.id));
     // Handle signaling (peer-to-peer connectio+ns)
     socket.on('signal', (signal: Signal) => {
       const { to, data: signalData } = signal;
@@ -352,6 +350,18 @@ io.on('connection', (socket: Socket) => {
         data: signalData,
         client: { steamId: data.steamId, clientId: data.steamId },
       });
+    });
+
+    socket.on('microphone-state', (state: { isMuted: boolean }) => {
+      const client = room.clients.get(socket.id);
+      if (client) {
+        client.isMuted = state.isMuted;
+        socket.broadcast.to(data.roomCode).emit('microphone-state', socket.id, state.isMuted);
+      } else {
+        console.error(
+          'Tried to update microphone-state for a client that doesnt exist in the room',
+        );
+      }
     });
 
     //TODO: handle a manual 'leave' event, removing their data from their joined room
