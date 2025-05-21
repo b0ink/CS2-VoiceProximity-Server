@@ -98,8 +98,8 @@ io.on('connection', (socket: Socket) => {
         deadPlayerMuteDelay: raw.DeadPlayerMuteDelay as number,
         allowDeadTeamVoice: raw.AllowDeadTeamVoice as boolean,
         allowSpectatorC4Voice: raw.AllowSpectatorC4Voice as boolean,
-        rolloffFactor: raw.rolloffFactor as number,
-        refDistance: raw.refDistance as number,
+        rolloffFactor: raw.RolloffFactor as number,
+        refDistance: raw.RefDistance as number,
       };
       room.serverConfig = decoded;
       if (DEBUG) {
