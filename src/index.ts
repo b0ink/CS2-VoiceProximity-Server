@@ -25,7 +25,9 @@ app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, '../src/views'));
 app.set('trust proxy', true);
 
-app.get('/', (req: Request, res: Response) => res.render('index'));
+app.get('/', (req: Request, res: Response) =>
+  res.render('index', { connectedUsers: totalConnectedUsers() }),
+);
 app.use('/', verifySteam);
 app.use('/', getTurnCredential);
 
@@ -41,6 +43,10 @@ const io = new Server(server, {
     methods: ['GET', 'POST'],
   },
 });
+
+const totalConnectedUsers = () => {
+  return io.of('/').sockets.size;
+};
 // io.engine.set('trust proxy', true);
 
 const testDefaultRoom = '123';
