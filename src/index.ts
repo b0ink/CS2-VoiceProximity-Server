@@ -49,9 +49,7 @@ const totalConnectedUsers = () => {
 };
 // io.engine.set('trust proxy', true);
 
-const testDefaultRoom = '123';
-
-const rooms: RoomData[] = [new RoomData(testDefaultRoom)];
+const rooms: RoomData[] = [];
 
 io.on('connection', (socket: Socket) => {
   const ua = socket.handshake.headers['user-agent'];
