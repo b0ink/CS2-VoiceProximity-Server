@@ -320,7 +320,7 @@ io.on('connection', (socket: Socket) => {
         return;
       }
       // TODO: warning that long map changes (workshop downloads) will disconnect them and they need to rejoin the room again
-      if (player.lastTimeOnServer > 0 && Date.now() / 1000 - player.lastTimeOnServer > 60) {
+      if (player.lastTimeOnServer > 0 && Date.now() / 1000 - player.lastTimeOnServer > 30) {
         if (DEBUG) {
           console.log('Disconnecting player');
         }
