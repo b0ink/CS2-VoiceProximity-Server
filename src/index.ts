@@ -348,7 +348,11 @@ io.on('connection', (socket: Socket) => {
       io.to(to).emit('signal', {
         from: socket.id,
         data: signalData,
-        client: { steamId: data.steamId, clientId: data.steamId },
+        client: {
+          steamId: data.steamId,
+          clientId: data.steamId,
+          isMuted: room.clients.get(socket.id)?.isMuted,
+        },
       });
     });
 
