@@ -70,6 +70,7 @@ io.on('connection', (socket: Socket) => {
 
   if (apiKey && serverAddress && serverPort) {
     if (apiKey !== defaultApiKey) {
+      socket._error('Invalid API Key.');
       socket.disconnect();
       console.log(`Reject incoming connection (invalid api key, server address, or server port)`);
       return;
