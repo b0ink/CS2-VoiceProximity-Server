@@ -17,6 +17,8 @@ import {
   ServerConfigData,
   ServerPlayer,
   Signal,
+  SocketApiError,
+  SocketApiErrorType,
 } from './types';
 
 const app = express();
@@ -189,12 +191,17 @@ io.on('connection', (socket: Socket) => {
         audience: domain,
       });
       socketAuthPayload = verified as JwtAuthPayload;
-      // if (!socketAuthPayload.steamId || socketAuthPayload.steamId == '0') {
-      //   socket.disconnect();
-      //   throw new Error('Invalid steamId');
-      // }
+      if (!socketAuthPayload.steamId || socketAuthPayload.steamId == '0') {
+        throw new Error('Invalid steamId');
+      }
     } catch (err) {
       console.log(`Failed to verify jwt: ${err}`);
+      const socketError: SocketApiError = {
+        code: SocketApiErrorType.AuthExpired,
+        message: 'Authentication Expired',
+      };
+      socket.emit('exception', socketError);
+      return;
     }
 
     if (socketAuthPayload && socketAuthPayload.steamId) {

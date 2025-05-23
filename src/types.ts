@@ -105,3 +105,11 @@ export interface ServerConfigData {
   rolloffFactor: number; // How quickly player voice volumes are reduced as you move away from them
   refDistance: number; // The distance at which the volume reduction starts taking effect
 }
+
+export enum SocketApiErrorType {
+  AuthExpired,
+}
+export interface SocketApiError {
+  code: SocketApiErrorType;
+  message: string;
+}
