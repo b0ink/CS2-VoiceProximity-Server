@@ -9,6 +9,7 @@ import { DEBUG, defaultApiKey, domain, jwtSecretKey, port } from './config';
 import getTurnCredential from './routes/get-turn-credential';
 import verifySteam from './routes/verify-steam';
 import {
+  Client,
   JoinedPlayers,
   JoinRoomCallback,
   JoinRoomData,
@@ -40,7 +41,7 @@ const MINIMUM_CLIENT_VERSION = '0.1.24-alpha.0';
 
 //
 
-const io = new Server<ServerToClientEvents, ClientToServerEvents>(server, {
+const io = new Server<ClientToServerEvents, ServerToClientEvents>(server, {
   cors: {
     // origin: isProduction ? domain : '*',
     origin: '*',
@@ -54,19 +55,25 @@ const totalConnectedUsers = () => {
 // io.engine.set('trust proxy', true);
 
 interface ServerToClientEvents {
-  'microphone-state': { muted: boolean };
-  'current-map': (from: string, mapName: string) => void;
-  signal: { signal: Signal };
-  'server-config': { data: any };
-  'player-positions': (from: string, data: Buffer<ArrayBufferLike> | Buffer) => void;
+  'current-map': (mapName: string) => void;
+  'server-config': (data: Buffer<ArrayBufferLike>) => void;
+  'player-positions': (data: Buffer<ArrayBufferLike>) => void;
+  exception: (string: SocketApiError) => void;
+  'player-on-server': (data: { roomCode: string }) => void;
+  'user-left': (socketId: string, client: Client) => void;
+  'user-joined': (socketId: string, client: Client) => void;
+  signal: (data: { from: string; data: string; client: Client }) => void;
+  'microphone-state': (socketId: string, isMuted: boolean) => void;
 }
 
 interface ClientToServerEvents {
-  'user-left': { socketId: string; steamId: string; clientId: string };
-  'server-config2': (from: string, data: Buffer<ArrayBufferLike>) => void;
-  'player-positions': Buffer<ArrayBufferLike>;
+  'server-config': (from: string, data: Buffer<ArrayBufferLike>) => void;
   exception: SocketApiError;
-  'current-map': (mapName: string) => void;
+  'current-map': (from: string, mapName: string) => void;
+  'player-positions': (from: string, data: Buffer<ArrayBufferLike>) => void;
+  'join-room': (data: JoinRoomData, callback: JoinRoomCallback) => void;
+  signal: (signal: Signal) => void;
+  'microphone-state': (state: { isMuted: boolean }) => void;
 }
 
 const rooms: RoomData[] = [];
@@ -88,7 +95,11 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
 
   if (apiKey && serverAddress && serverPort) {
     if (apiKey !== defaultApiKey) {
-      socket.emit('exception', 'Invalid API Key');
+      const socketError: SocketApiError = {
+        code: SocketApiErrorType.InvalidApiKey,
+        message: 'Invalid API Key',
+      };
+      socket.emit('exception', socketError);
       socket.disconnect();
       console.log(`Reject incoming connection (invalid api key, server address, or server port)`);
       return;
@@ -117,7 +128,7 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
 
     console.log(`Active rooms: ${JSON.stringify(rooms)}`);
 
-    socket.on('server-config2', (_from: string, data: Buffer<ArrayBufferLike>) => {
+    socket.on('server-config', (_from: string, data: Buffer<ArrayBufferLike>) => {
       const raw = decode(new Uint8Array(data)) as Record<string, unknown>;
       const decoded: ServerConfigData = {
         deadPlayerMuteDelay: raw.DeadPlayerMuteDelay as number,
@@ -237,7 +248,7 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
         });
 
         // SteamId is connected to the CS2 server but they havent joined the room yet
-        if (room) {
+        if (room && room.roomCode_) {
           socket.emit('player-on-server', { roomCode: room.roomCode_ });
         }
       }, 5000);
@@ -347,6 +358,9 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
     console.log(JSON.stringify(room));
 
     const disconnectedPlayerCheck = setInterval(() => {
+      if (!payload || !payload.steamId) {
+        return;
+      }
       const player = room.joinedPlayers.find((plr) => plr.steamId === payload.steamId);
       if (!player) {
         clearInterval(disconnectedPlayerCheck);
@@ -357,9 +371,11 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
           console.log('Disconnecting player');
         }
         room.joinedPlayers = room.joinedPlayers.filter((player) => player.socketId !== socket.id);
-        socket
-          .to(data.roomCode)
-          .emit('user-left', socket.id, { steamId: payload.steamId, clientId: payload.steamId });
+        socket.to(data.roomCode).emit('user-left', socket.id, {
+          steamId: payload.steamId,
+          clientId: payload.steamId,
+          isMuted: false,
+        });
         socket.leave(data.roomCode);
         socket.disconnect();
         clearInterval(disconnectedPlayerCheck);
@@ -374,7 +390,11 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
     );
 
     // Notify other users in the room about the new user joining
-    socket.broadcast.to(data.roomCode).emit('user-joined', socket.id, room.clients.get(socket.id));
+    const _client = room.clients.get(socket.id);
+    if (_client) {
+      socket.broadcast.to(data.roomCode).emit('user-joined', socket.id, _client);
+    }
+
     // Handle signaling (peer-to-peer connectio+ns)
     socket.on('signal', (signal: Signal) => {
       const { to, data: signalData } = signal;
@@ -385,7 +405,7 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
         client: {
           steamId: data.steamId,
           clientId: data.steamId,
-          isMuted: room.clients.get(socket.id)?.isMuted,
+          isMuted: room.clients.get(socket.id)?.isMuted ?? false,
         },
       });
     });
@@ -418,9 +438,14 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
         room.clients.delete(socket.id);
       }
       console.log(`${socket.id} disconnected. Cleaning up.. ${payload.steamId}`);
-      socket
-        .to(data.roomCode)
-        .emit('user-left', socket.id, { steamId: payload.steamId, clientId: payload.steamId });
+      if (payload && payload.steamId) {
+        socket.to(data.roomCode).emit('user-left', socket.id, {
+          steamId: payload.steamId,
+          clientId: payload.steamId,
+          isMuted: false,
+        });
+      }
+
       socket.leave(data.roomCode); // Remove user from the room when they disconnect
     });
   });

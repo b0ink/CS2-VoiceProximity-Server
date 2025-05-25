@@ -111,6 +111,7 @@ export interface ServerConfigData {
 
 export enum SocketApiErrorType {
   AuthExpired,
+  InvalidApiKey,
 }
 export interface SocketApiError {
   code: SocketApiErrorType;
