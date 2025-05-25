@@ -109,6 +109,9 @@ io.on('connection', (socket: Socket) => {
         allowSpectatorC4Voice: raw.AllowSpectatorC4Voice as boolean,
         rolloffFactor: raw.RolloffFactor as number,
         refDistance: raw.RefDistance as number,
+        occlusionNear: raw.OcclusionNear as number | undefined,
+        occlusionFar: raw.OcclusionFar as number | undefined,
+        occlusionEndDist: raw.OcclusionEndDist as number | undefined,
       };
       room.serverConfig = decoded;
       if (DEBUG) {
