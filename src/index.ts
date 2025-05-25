@@ -36,11 +36,11 @@ app.use('/', getTurnCredential);
 const server = http.createServer(app);
 
 // TODO: pull the latest version from the latest github release
-const MINIMUM_CLIENT_VERSION = '0.1.22-alpha.0';
+const MINIMUM_CLIENT_VERSION = '0.1.24-alpha.0';
 
 //
 
-const io = new Server(server, {
+const io = new Server<ServerToClientEvents, ClientToServerEvents>(server, {
   cors: {
     // origin: isProduction ? domain : '*',
     origin: '*',
@@ -53,9 +53,25 @@ const totalConnectedUsers = () => {
 };
 // io.engine.set('trust proxy', true);
 
+interface ServerToClientEvents {
+  'microphone-state': { muted: boolean };
+  'current-map': (from: string, mapName: string) => void;
+  signal: { signal: Signal };
+  'server-config': { data: any };
+  'player-positions': (from: string, data: Buffer<ArrayBufferLike> | Buffer) => void;
+}
+
+interface ClientToServerEvents {
+  'user-left': { socketId: string; steamId: string; clientId: string };
+  'server-config2': (from: string, data: Buffer<ArrayBufferLike>) => void;
+  'player-positions': Buffer<ArrayBufferLike>;
+  exception: SocketApiError;
+  'current-map': (mapName: string) => void;
+}
+
 const rooms: RoomData[] = [];
 
-io.on('connection', (socket: Socket) => {
+io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>) => {
   const ua = socket.handshake.headers['user-agent'];
 
   // const lang = socket.handshake.headers['accept-language'];
@@ -101,7 +117,7 @@ io.on('connection', (socket: Socket) => {
 
     console.log(`Active rooms: ${JSON.stringify(rooms)}`);
 
-    socket.on('server-config', (from: string, data: Buffer) => {
+    socket.on('server-config2', (_from: string, data: Buffer<ArrayBufferLike>) => {
       const raw = decode(new Uint8Array(data)) as Record<string, unknown>;
       const decoded: ServerConfigData = {
         deadPlayerMuteDelay: raw.DeadPlayerMuteDelay as number,
@@ -117,7 +133,7 @@ io.on('connection', (socket: Socket) => {
       io.to(serverId).emit('server-config', data);
     });
 
-    socket.on('player-positions', (from, data) => {
+    socket.on('player-positions', (_from: string, data: Buffer<ArrayBufferLike>) => {
       if (DEBUG) {
         // const sizeKb = Buffer.byteLength(data) / 1024;
         // console.log(`Data size: ${sizeKb.toFixed(2)} KB`);
@@ -141,7 +157,7 @@ io.on('connection', (socket: Socket) => {
       room.lastUpdateFromServer = Date.now() / 1000;
     });
 
-    socket.on('current-map', (from, mapName: string) => {
+    socket.on('current-map', (_from: string, mapName: string) => {
       const room = rooms.find((room) => room.roomCode_ === serverId);
       if (room) {
         room.mapName = mapName;
