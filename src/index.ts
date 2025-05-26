@@ -125,10 +125,18 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
     });
 
     socket.on('player-positions', (_from: string, data: Buffer<ArrayBufferLike>) => {
+      const secondsSinceUpdate = Date.now() / 1000 - room.lastUpdateFromServer;
+
       if (DEBUG) {
         // const sizeKb = Buffer.byteLength(data) / 1024;
         // console.log(`Data size: ${sizeKb.toFixed(2)} KB`);
+        console.log(`seconds since update: ${secondsSinceUpdate}`);
       }
+
+      if (secondsSinceUpdate < 0.09) {
+        return;
+      }
+
       io.volatile.to(serverId).volatile.emit('player-positions', data);
 
       const decoded = decode(new Uint8Array(data)) as [string, string][];
