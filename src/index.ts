@@ -4,24 +4,21 @@ import http from 'http';
 import jwt from 'jsonwebtoken';
 import path from 'path';
 import semver from 'semver';
-import Peer from 'simple-peer';
 import { Server, Socket } from 'socket.io';
 import { DEBUG, defaultApiKey, domain, jwtSecretKey, port } from './config';
 import getTurnCredential from './routes/get-turn-credential';
 import verifySteam from './routes/verify-steam';
 import {
-  Client,
-  JoinedPlayers,
+  ClientToServerEvents,
   JoinRoomCallback,
   JoinRoomData,
-  JwtAuthPayload,
-  RoomData,
   ServerConfigData,
-  ServerPlayer,
+  ServerToClientEvents,
   Signal,
   SocketApiError,
   SocketApiErrorType,
-} from './types';
+} from './shared-types';
+import { JoinedPlayers, JwtAuthPayload, RoomData, ServerPlayer } from './types';
 
 const app = express();
 app.use(express.static(path.join(__dirname, '../src/public')));
@@ -54,28 +51,6 @@ const totalConnectedUsers = () => {
   return io.of('/').sockets.size;
 };
 // io.engine.set('trust proxy', true);
-
-interface ServerToClientEvents {
-  'current-map': (mapName: string) => void;
-  'server-config': (data: Buffer<ArrayBufferLike>) => void;
-  'player-positions': (data: Buffer<ArrayBufferLike>) => void;
-  exception: (string: SocketApiError) => void;
-  'player-on-server': (data: { roomCode: string }) => void;
-  'user-left': (socketId: string, client: Client) => void;
-  'user-joined': (socketId: string, client: Client) => void;
-  signal: (data: { from: string; data: Peer.SignalData; client: Client }) => void;
-  'microphone-state': (socketId: string, isMuted: boolean) => void;
-}
-
-interface ClientToServerEvents {
-  'server-config': (from: string, data: Buffer<ArrayBufferLike>) => void;
-  exception: SocketApiError;
-  'current-map': (from: string, mapName: string) => void;
-  'player-positions': (from: string, data: Buffer<ArrayBufferLike>) => void;
-  'join-room': (data: JoinRoomData, callback: JoinRoomCallback) => void;
-  signal: (signal: Signal) => void;
-  'microphone-state': (state: { isMuted: boolean }) => void;
-}
 
 const rooms: RoomData[] = [];
 
@@ -132,14 +107,15 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
     socket.on('server-config', (_from: string, data: Buffer<ArrayBufferLike>) => {
       const raw = decode(new Uint8Array(data)) as Record<string, unknown>;
       const decoded: ServerConfigData = {
-        deadPlayerMuteDelay: raw.DeadPlayerMuteDelay as number,
-        allowDeadTeamVoice: raw.AllowDeadTeamVoice as boolean,
-        allowSpectatorC4Voice: raw.AllowSpectatorC4Voice as boolean,
-        rolloffFactor: raw.RolloffFactor as number,
-        refDistance: raw.RefDistance as number,
-        occlusionNear: raw.OcclusionNear as number | undefined,
-        occlusionFar: raw.OcclusionFar as number | undefined,
-        occlusionEndDist: raw.OcclusionEndDist as number | undefined,
+        deadPlayerMuteDelay: (raw.DeadPlayerMuteDelay as number | undefined) ?? 1000,
+        allowDeadTeamVoice: (raw.AllowDeadTeamVoice as boolean | undefined) ?? true,
+        allowSpectatorC4Voice: (raw.AllowSpectatorC4Voice as boolean | undefined) ?? true,
+        rolloffFactor: (raw.RolloffFactor as number | undefined) ?? 1,
+        refDistance: (raw.RefDistance as number | undefined) ?? 39,
+        occlusionNear: (raw.OcclusionNear as number | undefined) ?? 350,
+        occlusionFar: (raw.OcclusionFar as number | undefined) ?? 25,
+        occlusionEndDist: (raw.OcclusionEndDist as number | undefined) ?? 2000,
+        occlusionFalloffExponent: (raw.OcclusionFalloffExponent as number | undefined) ?? 3,
       };
       room.serverConfig = decoded;
       if (DEBUG) {
