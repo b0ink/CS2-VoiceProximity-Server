@@ -36,6 +36,7 @@ const server = http.createServer(app);
 
 // TODO: pull the latest version from the latest github release
 const MINIMUM_CLIENT_VERSION = '0.1.24-alpha.0';
+const MINIMUM_PLUGIN_VERSION = '0.0.20';
 
 //
 
@@ -66,10 +67,13 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
   const apiKey = query['api-key'];
   const serverAddress = query['server-address'];
   const serverPort = query['server-port'];
-  console.log(`Apikey: ${apiKey}, serverAddress: ${serverAddress}, serverPort: ${serverPort}`);
+  const pluginVersion = query['plugin-version'];
+  console.log(
+    `Apikey: ${apiKey}, serverAddress: ${serverAddress}, serverPort: ${serverPort}, pluginVersion: ${pluginVersion}`,
+  );
   let inactiveServerCheck: NodeJS.Timeout;
 
-  if (apiKey && serverAddress && serverPort) {
+  if (apiKey && serverAddress && serverPort && pluginVersion) {
     if (apiKey !== defaultApiKey) {
       const socketError: SocketApiError = {
         code: SocketApiErrorType.InvalidApiKey,
@@ -78,6 +82,21 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
       socket.emit('exception', socketError);
       socket.disconnect();
       console.log(`Reject incoming connection (invalid api key, server address, or server port)`);
+      return;
+    }
+
+    if (
+      typeof pluginVersion !== 'string' ||
+      !pluginVersion ||
+      !semver.satisfies(pluginVersion, `>=${MINIMUM_PLUGIN_VERSION}`)
+    ) {
+      console.log(`Checking plugin version: ${pluginVersion} with ${MINIMUM_PLUGIN_VERSION}`);
+      socket.emit('exception', {
+        code: SocketApiErrorType.PluginOutdated,
+        message:
+          'Please update the Proximity Chat plugin to the latest version. https://github.com/b0ink/CS2-VoiceProximity-Plugin/releases/tag/v0.0.19',
+      });
+      socket.disconnect();
       return;
     }
 
