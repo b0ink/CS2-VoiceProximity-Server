@@ -94,7 +94,7 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
       socket.emit('exception', {
         code: SocketApiErrorType.PluginOutdated,
         message:
-          'Please update the Proximity Chat plugin to the latest version. https://github.com/b0ink/CS2-VoiceProximity-Plugin/releases/tag/v0.0.19',
+          'Please update the Proximity Chat plugin to the latest version. https://github.com/b0ink/CS2-VoiceProximity-Plugin/releases/latest',
       });
       socket.disconnect();
       return;
