@@ -134,6 +134,7 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
       }
 
       if (secondsSinceUpdate < 0.09) {
+        console.log('Update from server was too quick, ignoring');
         return;
       }
 
