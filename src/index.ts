@@ -77,7 +77,7 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
     if (apiKey !== defaultApiKey) {
       const socketError: SocketApiError = {
         code: SocketApiErrorType.InvalidApiKey,
-        message: 'Invalid API Key',
+        message: 'Invalid API Key set, please ensure you have the correct Region (SocketURL) set.',
       };
       socket.emit('exception', socketError);
       socket.disconnect();
@@ -104,6 +104,10 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
     console.log('New connection from IP:', ip);
 
     if (ip !== serverAddress) {
+      socket.emit('exception', {
+        code: SocketApiErrorType.InvalidServerIp,
+        message: 'IP mismatch between CS2 server and incoming connection.',
+      });
       socket.disconnect();
       console.log(
         `IP mismatch: expected ${serverAddress}, got ${ip} (port: ${serverPort}, apiKey: ${apiKey})`,
