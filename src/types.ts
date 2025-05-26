@@ -87,15 +87,6 @@ export interface JoinRoomResponse {
 
 export type JoinRoomCallback = (response: JoinRoomResponse) => void;
 
-export interface PlayerData {
-  steamId: string;
-  name: string;
-  origin: { x: number; y: number; z: number };
-  lookAt: { x: number; y: number; z: number };
-  team: number;
-  isAlive: boolean;
-}
-
 export interface Signal {
   data: Peer.SignalData;
   to: string;
