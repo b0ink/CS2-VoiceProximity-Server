@@ -1,3 +1,4 @@
+import Peer from 'simple-peer';
 export interface SteamOpenIDParams {
   ns?: string;
   mode?: string;
@@ -76,13 +77,15 @@ export interface JoinRoomData {
   isMuted: boolean;
 }
 
-export type JoinRoomCallback = (response: {
+export interface JoinRoomResponse {
   success: boolean;
   message: string;
   mapName?: string;
   joinedClients?: { [key: string]: Client };
   serverConfig?: ServerConfigData;
-}) => void;
+}
+
+export type JoinRoomCallback = (response: JoinRoomResponse) => void;
 
 export interface PlayerData {
   steamId: string;
@@ -94,8 +97,17 @@ export interface PlayerData {
 }
 
 export interface Signal {
-  data: string;
+  data: Peer.SignalData;
   to: string;
+}
+
+export enum SocketApiErrorType {
+  AuthExpired,
+  InvalidApiKey,
+}
+export interface SocketApiError {
+  code: SocketApiErrorType;
+  message: string;
 }
 
 export interface ServerConfigData {
@@ -107,13 +119,4 @@ export interface ServerConfigData {
   occlusionNear?: number; // The maximum occlusion level for players fully behind a wall at the closest distance (0 is fully occluded)
   occlusionFar?: number; // The maximum occlusion when player's distance reaches OcclusionEnd
   occlusionEndDist?: number; // Distance from player where it fully reaches OcclusionFar
-}
-
-export enum SocketApiErrorType {
-  AuthExpired,
-  InvalidApiKey,
-}
-export interface SocketApiError {
-  code: SocketApiErrorType;
-  message: string;
 }

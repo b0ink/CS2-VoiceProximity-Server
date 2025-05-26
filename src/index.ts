@@ -4,6 +4,7 @@ import http from 'http';
 import jwt from 'jsonwebtoken';
 import path from 'path';
 import semver from 'semver';
+import Peer from 'simple-peer';
 import { Server, Socket } from 'socket.io';
 import { DEBUG, defaultApiKey, domain, jwtSecretKey, port } from './config';
 import getTurnCredential from './routes/get-turn-credential';
@@ -62,7 +63,7 @@ interface ServerToClientEvents {
   'player-on-server': (data: { roomCode: string }) => void;
   'user-left': (socketId: string, client: Client) => void;
   'user-joined': (socketId: string, client: Client) => void;
-  signal: (data: { from: string; data: string; client: Client }) => void;
+  signal: (data: { from: string; data: Peer.SignalData; client: Client }) => void;
   'microphone-state': (socketId: string, isMuted: boolean) => void;
 }
 
