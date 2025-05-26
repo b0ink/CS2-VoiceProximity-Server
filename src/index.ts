@@ -173,6 +173,10 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
         if (DEBUG) {
           console.log('Destroying room');
         }
+        io.to(serverId).emit('exception', {
+          code: SocketApiErrorType.RoomShutdown,
+          message: 'You have been disconnected because the room no longer exists.',
+        });
         io.to(serverId).disconnectSockets();
         socket.disconnect();
         room.joinedPlayers = [];
@@ -363,6 +367,10 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
           isMuted: false,
         });
         socket.leave(data.roomCode);
+        socket.emit('exception', {
+          code: SocketApiErrorType.PlayerDisconnected,
+          message: 'You have been disconnected because you are no longer on the server.',
+        });
         socket.disconnect();
         clearInterval(disconnectedPlayerCheck);
       }
