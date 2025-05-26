@@ -130,11 +130,11 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
       if (DEBUG) {
         // const sizeKb = Buffer.byteLength(data) / 1024;
         // console.log(`Data size: ${sizeKb.toFixed(2)} KB`);
-        console.log(`seconds since update: ${secondsSinceUpdate}`);
+        // console.log(`seconds since update from socket: ${socket.id}: ${secondsSinceUpdate}`);
       }
 
       if (secondsSinceUpdate < 0.09) {
-        console.log('Update from server was too quick, ignoring');
+        // console.log('Update from server was too quick, ignoring');
         return;
       }
 
