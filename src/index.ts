@@ -427,8 +427,10 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
 
     socket.on('offer', (signal: Signal) => {
       // TODO: send offer connection
+      console.log(`received offer... ${JSON.stringify(signal.data)}`);
       if ('sdp' in signal.data && 'type' in signal.data && typeof signal.data.sdp === 'string') {
         // It's RTCSessionDescriptionInit
+        console.log(`emitting offer to ${room.serverSocketId}`);
         io.to(room.serverSocketId!).emit('offer', {
           sdp: signal.data.sdp,
           from: socket.id,
