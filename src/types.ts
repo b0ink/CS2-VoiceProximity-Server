@@ -40,6 +40,7 @@ export interface ServerPlayer {
   SteamId: string;
 }
 export class RoomData {
+  serverSocketId?: string;
   roomCode_?: string = undefined;
   maxPlayers_?: number = 10;
   joinedPlayers: JoinedPlayers[] = []; // active peer connections

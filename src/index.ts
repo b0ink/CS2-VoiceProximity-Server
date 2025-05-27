@@ -125,6 +125,19 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
       // TODO: if no request is made from this apikey/server after some time, remove the room
     }
 
+    room.serverSocketId = socket.id;
+
+    socket.on('answer', (data) => {
+      console.log(data);
+      io.to(data.to).emit('cs2-signal', {
+        from: socket.id,
+        data: {
+          type: 'answer',
+          sdp: data.sdp,
+        },
+      });
+    });
+
     console.log(`Active rooms: ${JSON.stringify(rooms)}`);
 
     socket.on('server-config', (_from: string, data: Buffer<ArrayBufferLike>) => {
@@ -411,6 +424,17 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
     if (_client) {
       socket.broadcast.to(data.roomCode).emit('user-joined', socket.id, _client);
     }
+
+    socket.on('offer', (signal: Signal) => {
+      // TODO: send offer connection
+      if ('sdp' in signal.data && 'type' in signal.data && typeof signal.data.sdp === 'string') {
+        // It's RTCSessionDescriptionInit
+        io.to(room.serverSocketId!).emit('offer', {
+          sdp: signal.data.sdp,
+          from: socket.id,
+        });
+      }
+    });
 
     // Handle signaling (peer-to-peer connectio+ns)
     socket.on('signal', (signal: Signal) => {

@@ -15,7 +15,9 @@ export interface ServerToClientEvents {
   'user-left': (socketId: string, client: Client) => void;
   'user-joined': (socketId: string, client: Client) => void;
   signal: (data: { from: string; data: Peer.SignalData; client: Client }) => void;
+  'cs2-signal': (data: { from: string; data: Peer.SignalData }) => void;
   'microphone-state': (socketId: string, isMuted: boolean) => void;
+  offer: (payload: { sdp: string; from: string }) => void;
 }
 
 export interface ClientToServerEvents {
@@ -25,6 +27,8 @@ export interface ClientToServerEvents {
   'player-positions': (from: string, data: Buffer<ArrayBufferLike>) => void;
   'join-room': (data: JoinRoomData, callback: JoinRoomCallback) => void;
   signal: (signal: Signal) => void;
+  offer: (signal: Signal) => void;
+  answer: (data: { sdp: string; type: string; to: string }) => void;
   'microphone-state': (state: { isMuted: boolean }) => void;
 }
 
