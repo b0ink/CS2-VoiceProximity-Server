@@ -51,7 +51,7 @@ export class RoomData {
     deadPlayerMuteDelay: 1000,
     allowDeadTeamVoice: true,
     allowSpectatorC4Voice: true,
-    volumeDropoffFactor: 3,
+    volumeFalloffFactor: 3,
     volumeMaxDistance: 2500,
     occlusionNear: 350,
     occlusionFar: 25,
