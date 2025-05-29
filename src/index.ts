@@ -41,7 +41,7 @@ const MINIMUM_PLUGIN_VERSION = '0.0.20';
 
 const rateLimiter = new RateLimiterMemory({
   points: 2, // 3 points
-  duration: 1, // per second
+  duration: 5, // per second
 });
 
 const io = new Server<ClientToServerEvents, ServerToClientEvents>(server, {
