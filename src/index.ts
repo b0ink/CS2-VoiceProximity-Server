@@ -127,6 +127,9 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
 
     console.log(`Active rooms: ${JSON.stringify(rooms)}`);
 
+    // Track the socket id of the CS2 Server
+    room.serverSocketId = socket.id;
+
     socket.on('server-config', (_from: string, data: Buffer<ArrayBufferLike>) => {
       const raw = decode(new Uint8Array(data)) as Record<string, unknown>;
       const decoded: ServerConfigData = {
@@ -428,6 +431,9 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
       room.serverConfig = config;
       const buffer: Buffer = Buffer.from(encode(config));
       io.to(room.roomCode_).emit('server-config', buffer);
+      if (room.serverSocketId) {
+        io.to(room.serverSocketId).emit('server-config', buffer);
+      }
     });
 
     // Handle signaling (peer-to-peer connectio+ns)

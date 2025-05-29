@@ -42,6 +42,7 @@ export interface ServerPlayer {
 }
 export class RoomData {
   roomCode_?: string = undefined;
+  serverSocketId?: string = undefined;
   maxPlayers_?: number = 10;
   joinedPlayers: JoinedPlayers[] = []; // active peer connections
   playersOnServer: ServerPlayer[] = []; // players actually on the cs2 server'
