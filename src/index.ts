@@ -142,6 +142,7 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
         occlusionFar: (raw.OcclusionFar as number | undefined) ?? 25,
         occlusionEndDist: (raw.OcclusionEndDist as number | undefined) ?? 2000,
         occlusionFalloffExponent: (raw.OcclusionFalloffExponent as number | undefined) ?? 3,
+        alwaysHearVisiblePlayers: (raw.AlwaysHearVisiblePlayers as boolean | undefined) ?? true,
       };
       room.serverConfig = decoded;
       if (DEBUG) {
@@ -427,6 +428,8 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
         occlusionEndDist: data.config.occlusionEndDist ?? room.serverConfig.occlusionEndDist,
         occlusionFalloffExponent:
           data.config.occlusionFalloffExponent ?? room.serverConfig.occlusionFalloffExponent,
+        alwaysHearVisiblePlayers:
+          data.config.alwaysHearVisiblePlayers ?? room.serverConfig.alwaysHearVisiblePlayers,
       };
       room.serverConfig = config;
       const buffer: Buffer = Buffer.from(encode(config));
@@ -445,6 +448,7 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
               OcclusionFar: config.occlusionFar,
               OcclusionEndDist: config.occlusionEndDist,
               OcclusionFalloffExponent: config.occlusionFalloffExponent,
+              AlwaysHearVisiblePlayers: config.alwaysHearVisiblePlayers,
             }),
           ),
         );
