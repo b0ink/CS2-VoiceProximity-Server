@@ -19,6 +19,7 @@ import {
   SocketApiErrorType,
 } from './shared-types';
 import { JoinedPlayers, RoomData, ServerPlayer } from './types';
+import { RateLimiterMemory } from 'rate-limiter-flexible';
 
 const app = express();
 app.use(express.static(path.join(__dirname, '../src/public')));
@@ -38,7 +39,10 @@ const server = http.createServer(app);
 const MINIMUM_CLIENT_VERSION = '0.1.25-alpha.0';
 const MINIMUM_PLUGIN_VERSION = '0.0.20';
 
-//
+const rateLimiter = new RateLimiterMemory({
+  points: 2, // 3 points
+  duration: 1, // per second
+});
 
 const io = new Server<ClientToServerEvents, ServerToClientEvents>(server, {
   cors: {
@@ -259,7 +263,7 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
 
   // Handle joining a room
   // TODO: steamId and clientId are the same right now
-  socket.on('join-room', (data: JoinRoomData, callback: JoinRoomCallback) => {
+  socket.on('join-room', async (data: JoinRoomData, callback: JoinRoomCallback) => {
     //TODO; capacity limits on joining room
     console.log('user joining room');
 
@@ -285,8 +289,15 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
       return;
     }
 
-    if (!auth.valid || !auth.payload) {
+    if (!auth.valid || !auth.payload || !auth.payload.steamId) {
       return callback({ success: false, message: 'Authentication Expired' });
+    }
+
+    try {
+      await rateLimiter.consume(auth.payload.steamId);
+    } catch (rejReason) {
+      console.log(rejReason);
+      return callback({ success: false, message: 'Rate limit hit' });
     }
 
     const steamIdAlreadyInARoom = rooms.some((room) =>
@@ -396,7 +407,7 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
       socket.broadcast.to(data.roomCode).emit('user-joined', socket.id, _client);
     }
 
-    socket.on('mute-player', (data) => {
+    socket.on('mute-player', async (data) => {
       const auth = authenticateToken(data.clientToken);
       const steamid = auth.payload?.steamId;
       if (!auth.valid || !steamid) {
@@ -419,10 +430,15 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
         return;
       }
 
-      io.to(playerToMute.socketId).emit('muted-by-server-admin');
+      try {
+        await rateLimiter.consume(player.SteamId);
+        io.to(playerToMute.socketId).emit('muted-by-server-admin');
+      } catch (rejectReason) {
+        console.log(`Rate limited exceeded by ${player.SteamId} (${rejectReason})`);
+      }
     });
 
-    socket.on('update-config', (data) => {
+    socket.on('update-config', async (data) => {
       const auth = authenticateToken(data.clientToken);
       const steamid = auth.payload?.steamId;
       if (!auth.valid || !steamid) {
@@ -459,25 +475,31 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
       };
       room.serverConfig = config;
       const buffer: Buffer = Buffer.from(encode(config));
-      io.to(room.roomCode_).emit('server-config', buffer);
-      if (room.serverSocketId) {
-        io.to(room.serverSocketId).emit(
-          'server-config',
-          Buffer.from(
-            encode({
-              DeadPlayerMuteDelay: config.deadPlayerMuteDelay,
-              AllowDeadTeamVoice: config.allowDeadTeamVoice,
-              AllowSpectatorC4Voice: config.allowSpectatorC4Voice,
-              VolumeFalloffFactor: config.volumeFalloffFactor,
-              VolumeMaxDistance: config.volumeMaxDistance,
-              OcclusionNear: config.occlusionNear,
-              OcclusionFar: config.occlusionFar,
-              OcclusionEndDist: config.occlusionEndDist,
-              OcclusionFalloffExponent: config.occlusionFalloffExponent,
-              AlwaysHearVisiblePlayers: config.alwaysHearVisiblePlayers,
-            }),
-          ),
-        );
+
+      try {
+        await rateLimiter.consume(player.SteamId);
+        io.to(room.roomCode_).emit('server-config', buffer);
+        if (room.serverSocketId) {
+          io.to(room.serverSocketId).emit(
+            'server-config',
+            Buffer.from(
+              encode({
+                DeadPlayerMuteDelay: config.deadPlayerMuteDelay,
+                AllowDeadTeamVoice: config.allowDeadTeamVoice,
+                AllowSpectatorC4Voice: config.allowSpectatorC4Voice,
+                VolumeFalloffFactor: config.volumeFalloffFactor,
+                VolumeMaxDistance: config.volumeMaxDistance,
+                OcclusionNear: config.occlusionNear,
+                OcclusionFar: config.occlusionFar,
+                OcclusionEndDist: config.occlusionEndDist,
+                OcclusionFalloffExponent: config.occlusionFalloffExponent,
+                AlwaysHearVisiblePlayers: config.alwaysHearVisiblePlayers,
+              }),
+            ),
+          );
+        }
+      } catch (rejectReason) {
+        console.log(`Rate limited exceeded by ${player.SteamId} (${rejectReason})`);
       }
     });
 
