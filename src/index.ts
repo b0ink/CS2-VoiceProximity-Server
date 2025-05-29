@@ -409,16 +409,21 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
         return;
       }
 
+      console.log(`updating config`, JSON.stringify(data));
       const config: ServerConfigData = {
-        deadPlayerMuteDelay: data.config.deadPlayerMuteDelay ?? 1000,
-        allowDeadTeamVoice: data.config.allowDeadTeamVoice ?? true,
-        allowSpectatorC4Voice: data.config.allowSpectatorC4Voice ?? true,
-        volumeFalloffFactor: data.config.volumeFalloffFactor ?? 0.5,
-        volumeMaxDistance: data.config.volumeMaxDistance ?? 2000,
-        occlusionNear: data.config.occlusionNear ?? 300,
-        occlusionFar: data.config.occlusionFar ?? 25,
-        occlusionEndDist: data.config.occlusionEndDist ?? 2000,
-        occlusionFalloffExponent: data.config.occlusionFalloffExponent ?? 3,
+        deadPlayerMuteDelay:
+          data.config.deadPlayerMuteDelay ?? room.serverConfig.deadPlayerMuteDelay,
+        allowDeadTeamVoice: data.config.allowDeadTeamVoice ?? room.serverConfig.allowDeadTeamVoice,
+        allowSpectatorC4Voice:
+          data.config.allowSpectatorC4Voice ?? room.serverConfig.allowSpectatorC4Voice,
+        volumeFalloffFactor:
+          data.config.volumeFalloffFactor ?? room.serverConfig.volumeFalloffFactor,
+        volumeMaxDistance: data.config.volumeMaxDistance ?? room.serverConfig.volumeMaxDistance,
+        occlusionNear: data.config.occlusionNear ?? room.serverConfig.occlusionNear,
+        occlusionFar: data.config.occlusionFar ?? room.serverConfig.occlusionFar,
+        occlusionEndDist: data.config.occlusionEndDist ?? room.serverConfig.occlusionEndDist,
+        occlusionFalloffExponent:
+          data.config.occlusionFalloffExponent ?? room.serverConfig.occlusionFalloffExponent,
       };
       room.serverConfig = config;
       const buffer: Buffer = Buffer.from(encode(config));
