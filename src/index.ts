@@ -1,11 +1,11 @@
-import { decode } from '@msgpack/msgpack';
+import { decode, encode } from '@msgpack/msgpack';
 import express, { Request, Response } from 'express';
 import http from 'http';
-import jwt from 'jsonwebtoken';
 import path from 'path';
 import semver from 'semver';
 import { Server, Socket } from 'socket.io';
-import { DEBUG, defaultApiKey, domain, jwtSecretKey, port } from './config';
+import { authenticateToken } from './authenticateToken';
+import { DEBUG, defaultApiKey, domain, port } from './config';
 import getTurnCredential from './routes/get-turn-credential';
 import verifySteam from './routes/verify-steam';
 import {
@@ -18,7 +18,7 @@ import {
   SocketApiError,
   SocketApiErrorType,
 } from './shared-types';
-import { JoinedPlayers, JwtAuthPayload, RoomData, ServerPlayer } from './types';
+import { JoinedPlayers, RoomData, ServerPlayer } from './types';
 
 const app = express();
 app.use(express.static(path.join(__dirname, '../src/public')));
@@ -163,10 +163,11 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
 
       io.volatile.to(serverId).volatile.emit('player-positions', data);
 
-      const decoded = decode(new Uint8Array(data)) as [string, string][];
-      const minimalPlayerList = decoded.map(([SteamId, Name]) => ({
+      const decoded = decode(new Uint8Array(data)) as [string, string, boolean][];
+      const minimalPlayerList = decoded.map(([SteamId, Name, isAdmin]) => ({
         SteamId,
         Name,
+        isAdmin,
       })) as ServerPlayer[];
       for (const player of minimalPlayerList) {
         const playerPeer = room.joinedPlayers.find((plr) => plr.steamId === player.SteamId);
@@ -213,8 +214,6 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
     }, 1000);
   }
 
-  // TODO: check for JWT from user?
-
   console.log(`New user connected: ${socket.id} | ${apiKey}`);
 
   const authToken = socket.handshake.auth.token;
@@ -227,36 +226,22 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
   //
   let userOnServerCheck: NodeJS.Timeout;
   if (authToken) {
-    // TODO: combine the two jwt verifications (one on socket connection, other in join-room check)
-    let socketAuthPayload: JwtAuthPayload | null = null;
-    try {
-      const verified = jwt.verify(authToken, jwtSecretKey, {
-        audience: domain,
-      });
-      socketAuthPayload = verified as JwtAuthPayload;
-      if (!socketAuthPayload.steamId || socketAuthPayload.steamId == '0') {
-        throw new Error('Invalid steamId');
-      }
-    } catch (err) {
-      console.log(`Failed to verify jwt: ${err}`);
-      const socketError: SocketApiError = {
+    const auth = authenticateToken(authToken);
+    if (!auth.valid || auth.payload === null) {
+      socket.emit('exception', {
         code: SocketApiErrorType.AuthExpired,
         message: 'Authentication Expired',
-      };
-      socket.emit('exception', socketError);
+      });
       return;
     }
 
-    if (socketAuthPayload && socketAuthPayload.steamId) {
+    const validSteamId = auth.payload.steamId;
+    if (validSteamId) {
       // Don't run interval if this is a connection from cs2 server
       userOnServerCheck = setInterval(() => {
         const room = rooms.find((room) => {
-          const onServer = room.playersOnServer.some(
-            (p) => p.SteamId === socketAuthPayload.steamId,
-          );
-          const joinedRoom = room.joinedPlayers.some(
-            (p) => p.steamId === socketAuthPayload.steamId,
-          );
+          const onServer = room.playersOnServer.some((p) => p.SteamId === validSteamId);
+          const joinedRoom = room.joinedPlayers.some((p) => p.steamId === validSteamId);
           return onServer && !joinedRoom;
         });
 
@@ -286,27 +271,22 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
       });
     }
 
-    let payload: JwtAuthPayload;
-    try {
-      const verified = jwt.verify(data.token, jwtSecretKey, {
-        audience: domain,
+    const auth = authenticateToken(data.token);
+    const validSteamId = auth.payload?.steamId;
+    if (!auth.valid || auth.payload === null || !validSteamId) {
+      socket.emit('exception', {
+        code: SocketApiErrorType.AuthExpired,
+        message: 'Authentication Expired',
       });
-      payload = verified as JwtAuthPayload;
-      if (!payload.steamId || payload.steamId !== data.steamId || payload.steamId == '0') {
-        throw new Error('Invalid steamId');
-      }
-    } catch (err) {
-      // TODO: pass an error code
-      if (err instanceof jwt.TokenExpiredError) {
-        return callback({ success: false, message: 'Token has expired' });
-      } else {
-        console.error(err);
-        return callback({ success: false, message: 'Invalid token' });
-      }
+      return;
+    }
+
+    if (!auth.valid || !auth.payload) {
+      return callback({ success: false, message: 'Authentication Expired' });
     }
 
     const steamIdAlreadyInARoom = rooms.some((room) =>
-      room.joinedPlayers.some((player) => player.steamId === payload.steamId),
+      room.joinedPlayers.some((player) => player.steamId === validSteamId),
     );
 
     if (steamIdAlreadyInARoom) {
@@ -316,7 +296,7 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
       });
     }
 
-    console.log(`joinRoom called with ${data.roomCode}, ${payload.steamId}`);
+    console.log(`joinRoom called with ${data.roomCode}, ${validSteamId}`);
     if (!data.roomCode) {
       // If no room is provided, ignore the join attempt.
       return callback({ success: false, message: 'Invalid room code' });
@@ -330,11 +310,11 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
       return callback({ success: false, message: 'Room does not exist' });
     }
 
-    const joinedPlayer = room.playersOnServer.find((player) => player.SteamId === payload.steamId);
+    const joinedPlayer = room.playersOnServer.find((player) => player.SteamId === validSteamId);
     if (!joinedPlayer) {
       if (DEBUG) {
         console.log(
-          `Blocking join-room attempt from ${payload.steamId} because they are not on the server.`,
+          `Blocking join-room attempt from ${validSteamId} because they are not on the server.`,
         );
       }
 
@@ -349,7 +329,7 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
 
     const newPlayer = new JoinedPlayers();
     newPlayer.socketId = socket.id;
-    newPlayer.steamId = payload.steamId;
+    newPlayer.steamId = validSteamId;
     room.joinedPlayers.push(newPlayer);
 
     socket.join(data.roomCode);
@@ -363,18 +343,18 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
     });
 
     room.clients.set(socket.id, {
-      steamId: payload.steamId,
-      clientId: payload.steamId,
+      steamId: validSteamId,
+      clientId: validSteamId,
       isMuted: data.isMuted,
     });
 
     console.log(JSON.stringify(room));
 
     const disconnectedPlayerCheck = setInterval(() => {
-      if (!payload || !payload.steamId) {
+      if (!validSteamId) {
         return;
       }
-      const player = room.joinedPlayers.find((plr) => plr.steamId === payload.steamId);
+      const player = room.joinedPlayers.find((plr) => plr.steamId === validSteamId);
       if (!player) {
         clearInterval(disconnectedPlayerCheck);
         return;
@@ -385,8 +365,8 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
         }
         room.joinedPlayers = room.joinedPlayers.filter((player) => player.socketId !== socket.id);
         socket.to(data.roomCode).emit('user-left', socket.id, {
-          steamId: payload.steamId,
-          clientId: payload.steamId,
+          steamId: validSteamId,
+          clientId: validSteamId,
           isMuted: false,
         });
         socket.leave(data.roomCode);
@@ -401,8 +381,8 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
 
     console.log(
       `calling user-joined with ${socket.id} ${JSON.stringify({
-        steamId: payload.steamId,
-        clientId: payload.steamId,
+        steamId: validSteamId,
+        clientId: validSteamId,
       })}`,
     );
 
@@ -411,6 +391,39 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
     if (_client) {
       socket.broadcast.to(data.roomCode).emit('user-joined', socket.id, _client);
     }
+
+    socket.on('update-config', (data) => {
+      const auth = authenticateToken(data.clientToken);
+      const steamid = auth.payload?.steamId;
+      if (!auth.valid || !steamid) {
+        return;
+      }
+
+      if (!room || !room.roomCode_) {
+        return;
+      }
+
+      const player = room.playersOnServer.find((p) => p.SteamId === steamid);
+      if (!player?.isAdmin) {
+        console.log(`Non-admin tried to update the config!`);
+        return;
+      }
+
+      const config: ServerConfigData = {
+        deadPlayerMuteDelay: data.config.deadPlayerMuteDelay ?? 1000,
+        allowDeadTeamVoice: data.config.allowDeadTeamVoice ?? true,
+        allowSpectatorC4Voice: data.config.allowSpectatorC4Voice ?? true,
+        volumeFalloffFactor: data.config.volumeFalloffFactor ?? 0.5,
+        volumeMaxDistance: data.config.volumeMaxDistance ?? 2000,
+        occlusionNear: data.config.occlusionNear ?? 300,
+        occlusionFar: data.config.occlusionFar ?? 25,
+        occlusionEndDist: data.config.occlusionEndDist ?? 2000,
+        occlusionFalloffExponent: data.config.occlusionFalloffExponent ?? 3,
+      };
+      room.serverConfig = config;
+      const buffer: Buffer = Buffer.from(encode(config));
+      io.to(room.roomCode_).emit('server-config', buffer);
+    });
 
     // Handle signaling (peer-to-peer connectio+ns)
     socket.on('signal', (signal: Signal) => {
@@ -454,11 +467,11 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
         room.joinedPlayers = room.joinedPlayers.filter((player) => player.socketId !== socket.id);
         room.clients.delete(socket.id);
       }
-      console.log(`${socket.id} disconnected. Cleaning up.. ${payload.steamId}`);
-      if (payload && payload.steamId) {
+      console.log(`${socket.id} disconnected. Cleaning up.. ${validSteamId}`);
+      if (validSteamId) {
         socket.to(data.roomCode).emit('user-left', socket.id, {
-          steamId: payload.steamId,
-          clientId: payload.steamId,
+          steamId: validSteamId,
+          clientId: validSteamId,
           isMuted: false,
         });
       }

@@ -38,6 +38,7 @@ export class JoinedPlayers {
 export interface ServerPlayer {
   Name: string;
   SteamId: string;
+  isAdmin: boolean;
 }
 export class RoomData {
   roomCode_?: string = undefined;
