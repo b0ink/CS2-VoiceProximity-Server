@@ -1,9 +1,10 @@
-import { decode, encode } from '@msgpack/msgpack';
 import express, { Request, Response } from 'express';
 import http from 'http';
 import path from 'path';
+import { RateLimiterMemory } from 'rate-limiter-flexible';
 import semver from 'semver';
 import { Server, Socket } from 'socket.io';
+import { decode, encode } from '@msgpack/msgpack';
 import { authenticateToken } from './authenticateToken';
 import { DEBUG, defaultApiKey, domain, port } from './config';
 import getTurnCredential from './routes/get-turn-credential';
@@ -19,7 +20,6 @@ import {
   SocketApiErrorType,
 } from './shared-types';
 import { JoinedPlayers, RoomData, ServerPlayer } from './types';
-import { RateLimiterMemory } from 'rate-limiter-flexible';
 
 const app = express();
 app.use(express.static(path.join(__dirname, '../src/public')));

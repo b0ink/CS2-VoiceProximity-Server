@@ -1,24 +1,51 @@
 // @ts-check
-
-import eslint from '@eslint/js';
-import tseslint from 'typescript-eslint';
 import eslintConfigPrettier from 'eslint-config-prettier';
+import tseslint from 'typescript-eslint';
+import eslint from '@eslint/js';
 
 export default tseslint.config(
+  { ignores: ['**/node_modules', '**/dist', '**/out', './archive'] },
   eslint.configs.recommended,
   tseslint.configs.recommended,
-
   {
-    ignores: ['**', '!src/**', 'dist/'],
-    files: ['src/**'],
-  },
-  {
-    files: ['src/**.{ts}'],
-    rules: {
-      '@typescript-eslint/explicit-function-return-type': 'warn',
-      '@typescript-eslint/no-unused-vars': ['warn'],
-      '@typescript-eslint/no-explicit-any': 'warn',
+    files: ['**/*.{ts}'],
+    languageOptions: {
+      parserOptions: {
+        parser: tseslint.parser,
+      },
     },
-    extends: [eslintConfigPrettier],
   },
+  {
+    files: ['**/**.{ts}'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/naming-convention': [
+        'error',
+        {
+          format: ['camelCase', 'UPPER_CASE', 'PascalCase'],
+          leadingUnderscore: 'allow',
+          selector: 'variable',
+        },
+        {
+          format: ['camelCase', 'PascalCase'],
+          selector: 'function',
+        },
+        {
+          format: ['camelCase'],
+          selector: ['objectLiteralProperty', 'typeProperty'],
+        },
+        {
+          format: ['PascalCase'],
+          selector: ['enum', 'enumMember', 'class', 'interface', 'typeAlias'],
+        },
+        {
+          format: ['camelCase'],
+          leadingUnderscore: 'require',
+          modifiers: ['unused'],
+          selector: 'parameter',
+        },
+      ],
+    },
+  },
+  eslintConfigPrettier,
 );
