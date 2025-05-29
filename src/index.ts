@@ -432,7 +432,22 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
       const buffer: Buffer = Buffer.from(encode(config));
       io.to(room.roomCode_).emit('server-config', buffer);
       if (room.serverSocketId) {
-        io.to(room.serverSocketId).emit('server-config', buffer);
+        io.to(room.serverSocketId).emit(
+          'server-config',
+          Buffer.from(
+            encode({
+              DeadPlayerMuteDelay: config.deadPlayerMuteDelay,
+              AllowDeadTeamVoice: config.allowDeadTeamVoice,
+              AllowSpectatorC4Voice: config.allowSpectatorC4Voice,
+              VolumeFalloffFactor: config.volumeFalloffFactor,
+              VolumeMaxDistance: config.volumeMaxDistance,
+              OcclusionNear: config.occlusionNear,
+              OcclusionFar: config.occlusionFar,
+              OcclusionEndDist: config.occlusionEndDist,
+              OcclusionFalloffExponent: config.occlusionFalloffExponent,
+            }),
+          ),
+        );
       }
     });
 
