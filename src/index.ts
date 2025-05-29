@@ -396,6 +396,32 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
       socket.broadcast.to(data.roomCode).emit('user-joined', socket.id, _client);
     }
 
+    socket.on('mute-player', (data) => {
+      const auth = authenticateToken(data.clientToken);
+      const steamid = auth.payload?.steamId;
+      if (!auth.valid || !steamid) {
+        return;
+      }
+
+      if (!room || !room.roomCode_) {
+        return;
+      }
+
+      const player = room.playersOnServer.find((p) => p.SteamId === steamid);
+      if (!player?.isAdmin) {
+        console.log(`Non-admin tried to mute another player!`);
+        return;
+      }
+
+      const playerToMute = room.joinedPlayers.find((p) => p.steamId === data.targetSteamId);
+      if (!playerToMute || !playerToMute.socketId) {
+        console.log(`Tried to mute a player that isnt in the room!: ${data.targetSteamId}`);
+        return;
+      }
+
+      io.to(playerToMute.socketId).emit('muted-by-server-admin');
+    });
+
     socket.on('update-config', (data) => {
       const auth = authenticateToken(data.clientToken);
       const steamid = auth.payload?.steamId;
