@@ -134,18 +134,22 @@ io.on('connection', async (socket: Socket<ClientToServerEvents, ServerToClientEv
     }
 
     const existingRoom = rooms.find((room) => apiKeyData.id && room.apiKeyId === apiKeyData.id);
+    const oldSocketId = existingRoom?.serverSocketId;
     // Close previous socket connections using the same api key
-    if (existingRoom && existingRoom.serverSocketId) {
-      const oldSocket = io.sockets.sockets.get(existingRoom.serverSocketId);
-      if (oldSocket) {
-        console.log(`Destroy previous socket connection... ${oldSocket.id}`);
-        existingRoom.serverSocketId = undefined;
-        oldSocket.emit('exception', {
-          code: SocketApiErrorType.ReusedApiKey,
-          message:
-            'Socket disconnected due to API key being used on another server. You can ignore this if you have recently reloaded the plugin.',
-        });
-        oldSocket.disconnect();
+    if (existingRoom && oldSocketId) {
+      console.log(`my socket id: ${socket.id} - previous socket id: ${oldSocketId}`);
+      if (socket.id !== oldSocketId) {
+        const oldSocket = io.sockets.sockets.get(oldSocketId);
+        if (oldSocket) {
+          console.log(`Destroy previous socket connection... ${oldSocketId}`);
+          existingRoom.serverSocketId = undefined;
+          oldSocket.emit('exception', {
+            code: SocketApiErrorType.ReusedApiKey,
+            message:
+              'Socket disconnected due to API key being used on another server. You can ignore this if you have recently reloaded the plugin.',
+          });
+          oldSocket.disconnect();
+        }
       }
     }
 
