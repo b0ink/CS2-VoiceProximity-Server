@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import path from 'path';
 import { apiKeyPrefix } from './config';
 
 export type ApiKeyData = {
@@ -35,7 +36,10 @@ const defaultData: ApiKey[] = [];
 
 export async function loadDb() {
   const { JSONFilePreset } = await import('lowdb/node');
-  const db = await JSONFilePreset<ApiKeyData[]>('./db/db.json', defaultData);
+  const db = await JSONFilePreset<ApiKeyData[]>(
+    path.resolve(__dirname, '../db/db.json'),
+    defaultData,
+  );
   await db.read();
   return db;
 }
