@@ -301,7 +301,11 @@ io.on('connection', async (socket: Socket<ClientToServerEvents, ServerToClientEv
 
         // SteamId is connected to the CS2 server but they havent joined the room yet
         if (room && room.roomCode_) {
-          socket.emit('player-on-server', { roomCode: room.roomCode_ });
+          const secondsSinceUpdate = Date.now() / 1000 - room.lastUpdateFromServer;
+          // Ensure data is fresh before notifying the user
+          if (secondsSinceUpdate < 3) {
+            socket.emit('player-on-server', { roomCode: room.roomCode_ });
+          }
         }
       }, 5000);
     }
