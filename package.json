@@ -2,7 +2,7 @@
   "name": "cs2-proximity-chat-api",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "dist/index.js",
   "scripts": {
     "dev": "ts-node src/index.ts",
     "build": "tsc",
@@ -13,7 +13,6 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
   "dependencies": {
     "@msgpack/msgpack": "^3.1.1",
     "@types/jsonwebtoken": "^9.0.9",
