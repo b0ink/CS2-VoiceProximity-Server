@@ -76,7 +76,7 @@ io.on('connection', async (socket: Socket<ClientToServerEvents, ServerToClientEv
 
   const query = socket.handshake.query;
 
-  const connectedAt = Date.now();
+  let connectedAt = Date.now();
 
   const apiKey = typeof query['api-key'] === 'string' ? query['api-key'] : null;
   const serverAddress = query['server-address'];
@@ -162,6 +162,7 @@ io.on('connection', async (socket: Socket<ClientToServerEvents, ServerToClientEv
 
     // Track the socket id of the CS2 Server
     room.serverSocketId = socket.id;
+    room.apiKeyId = apiKeyData.id;
 
     socket.on('server-config', (_from: string, data: Buffer<ArrayBufferLike>) => {
       const raw = decode(new Uint8Array(data)) as Record<string, unknown>;
@@ -258,6 +259,7 @@ io.on('connection', async (socket: Socket<ClientToServerEvents, ServerToClientEv
         key.usage += Math.floor(durationMs / 1000);
         await db.write();
       }
+      connectedAt = Date.now();
     });
   }
 
