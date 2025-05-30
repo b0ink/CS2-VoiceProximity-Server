@@ -1,5 +1,4 @@
 import crypto from 'crypto';
-import { JSONFilePreset } from 'lowdb/node';
 import { apiKeyPrefix } from './config';
 
 export type ApiKeyData = {
@@ -35,6 +34,7 @@ export class ApiKey {
 const defaultData: ApiKey[] = [];
 
 export async function loadDb() {
+  const { JSONFilePreset } = await import('lowdb/node');
   const db = await JSONFilePreset<ApiKeyData[]>('db/db.json', defaultData);
   await db.read();
   return db;
