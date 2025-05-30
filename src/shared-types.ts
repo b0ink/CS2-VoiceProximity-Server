@@ -54,6 +54,7 @@ export enum SocketApiErrorType {
   PlayerDisconnected,
   PluginOutdated,
   InvalidServerIp,
+  ReusedApiKey,
 }
 
 export interface SocketApiError {

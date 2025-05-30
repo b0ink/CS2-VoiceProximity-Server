@@ -1,3 +1,4 @@
+import cookieParser from 'cookie-parser';
 import express, { Request, Response } from 'express';
 import http from 'http';
 import path from 'path';
@@ -5,8 +6,10 @@ import { RateLimiterMemory } from 'rate-limiter-flexible';
 import semver from 'semver';
 import { Server, Socket } from 'socket.io';
 import { decode, encode } from '@msgpack/msgpack';
+import { getApiKey, loadDb } from './api-keys';
 import { authenticateToken } from './authenticateToken';
-import { DEBUG, defaultApiKey, domain, port } from './config';
+import { DEBUG, domain, port } from './config';
+import adminApiKeys from './routes/admin/keys';
 import getTurnCredential from './routes/get-turn-credential';
 import verifySteam from './routes/verify-steam';
 import {
@@ -27,11 +30,16 @@ app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, '../src/views'));
 app.set('trust proxy', true);
 
+app.use(cookieParser());
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
+
 app.get('/', (req: Request, res: Response) =>
   res.render('index', { connectedUsers: totalConnectedUsers() }),
 );
 app.use('/', verifySteam);
 app.use('/', getTurnCredential);
+app.use('/admin', adminApiKeys);
 
 const server = http.createServer(app);
 
@@ -59,7 +67,7 @@ const totalConnectedUsers = () => {
 
 const rooms: RoomData[] = [];
 
-io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>) => {
+io.on('connection', async (socket: Socket<ClientToServerEvents, ServerToClientEvents>) => {
   const ua = socket.handshake.headers['user-agent'];
 
   // const lang = socket.handshake.headers['accept-language'];
@@ -68,7 +76,9 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
 
   const query = socket.handshake.query;
 
-  const apiKey = query['api-key'];
+  const connectedAt = Date.now();
+
+  const apiKey = typeof query['api-key'] === 'string' ? query['api-key'] : null;
   const serverAddress = query['server-address'];
   const serverPort = query['server-port'];
   const pluginVersion = query['plugin-version'];
@@ -78,10 +88,14 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
   let inactiveServerCheck: NodeJS.Timeout;
 
   if (apiKey && serverAddress && serverPort && pluginVersion) {
-    if (apiKey !== defaultApiKey) {
+    const apiKeyData = await getApiKey(apiKey);
+    if (!apiKeyData || !apiKeyData.isActive()) {
       const socketError: SocketApiError = {
         code: SocketApiErrorType.InvalidApiKey,
-        message: 'Invalid API Key set, please ensure you have the correct Region (SocketURL) set.',
+        message:
+          apiKeyData?.isActive() === false
+            ? 'Your API key has expired.'
+            : 'Invalid API Key set, please ensure you have the correct Region (SocketURL) set.',
       };
       socket.emit('exception', socketError);
       socket.disconnect();
@@ -117,6 +131,21 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
         `IP mismatch: expected ${serverAddress}, got ${ip} (port: ${serverPort}, apiKey: ${apiKey})`,
       );
       return;
+    }
+
+    const existingRoom = rooms.find((room) => apiKeyData.id && room.apiKeyId === apiKeyData.id);
+    // Close previous socket connections using the same api key
+    if (existingRoom && existingRoom.serverSocketId) {
+      const oldSocket = io.sockets.sockets.get(existingRoom.serverSocketId);
+      if (oldSocket) {
+        existingRoom.serverSocketId = undefined;
+        oldSocket.emit('exception', {
+          code: SocketApiErrorType.ReusedApiKey,
+          message:
+            'Socket disconnected due to API key being used on another server. You can ignore this if you have recently reloaded the plugin.',
+        });
+        oldSocket.disconnect(true);
+      }
     }
 
     const serverId = `${serverAddress}:${serverPort}`;
@@ -220,6 +249,16 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
         clearInterval(inactiveServerCheck);
       }
     }, 1000);
+    socket.on('disconnect', async () => {
+      const durationMs = Date.now() - connectedAt;
+      console.log(`Socket ${socket.id} was connected for ${durationMs} ms`);
+      const db = await loadDb();
+      const key = db.data.find((k) => k.id === apiKeyData.id);
+      if (key) {
+        key.usage += Math.floor(durationMs / 1000);
+        await db.write();
+      }
+    });
   }
 
   console.log(`New user connected: ${socket.id} | ${apiKey}`);

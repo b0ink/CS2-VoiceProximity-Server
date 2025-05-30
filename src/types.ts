@@ -41,6 +41,7 @@ export interface ServerPlayer {
   isAdmin: boolean;
 }
 export class RoomData {
+  apiKeyId?: string = undefined;
   roomCode_?: string = undefined;
   serverSocketId?: string = undefined;
   maxPlayers_?: number = 10;

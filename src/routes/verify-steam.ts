@@ -1,6 +1,6 @@
 import { Request, Response, Router } from 'express';
 import jwt from 'jsonwebtoken';
-import { domain, jwtSecretKey } from '../config';
+import { domain, isProduction, jwtSecretKey } from '../config';
 import { JwtAuthPayload, SteamOpenIDParams } from '../types';
 
 const router = Router();
@@ -37,9 +37,16 @@ router.get('/verify-steam', async (req: Request, res: Response) => {
 
   try {
     const token = jwt.sign(jwtPayload, jwtSecretKey);
-    res.render('auth-success', {
-      redirectUrl: `${process.env.REDIRECT_URL_PROTOCOL}?token=${token}`,
-    });
+    res
+      .cookie('token', token, {
+        httpOnly: true,
+        secure: isProduction,
+        maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
+        sameSite: 'lax',
+      })
+      .render('auth-success', {
+        redirectUrl: `${process.env.REDIRECT_URL_PROTOCOL}?token=${token}`,
+      });
   } catch (e) {
     console.error(e);
     return res.render('auth-failed');
