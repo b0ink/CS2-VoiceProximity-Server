@@ -35,7 +35,7 @@ const defaultData: ApiKey[] = [];
 
 export async function loadDb() {
   const { JSONFilePreset } = await import('lowdb/node');
-  const db = await JSONFilePreset<ApiKeyData[]>('db/db.json', defaultData);
+  const db = await JSONFilePreset<ApiKeyData[]>('./db/db.json', defaultData);
   await db.read();
   return db;
 }
