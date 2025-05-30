@@ -138,13 +138,14 @@ io.on('connection', async (socket: Socket<ClientToServerEvents, ServerToClientEv
     if (existingRoom && existingRoom.serverSocketId) {
       const oldSocket = io.sockets.sockets.get(existingRoom.serverSocketId);
       if (oldSocket) {
+        console.log(`Destroy previous socket connection... ${oldSocket.id}`);
         existingRoom.serverSocketId = undefined;
         oldSocket.emit('exception', {
           code: SocketApiErrorType.ReusedApiKey,
           message:
             'Socket disconnected due to API key being used on another server. You can ignore this if you have recently reloaded the plugin.',
         });
-        oldSocket.disconnect(true);
+        oldSocket.disconnect();
       }
     }
 
