@@ -129,7 +129,7 @@ io.on('connection', async (socket: Socket<ClientToServerEvents, ServerToClientEv
 
     // should contain both actual ip and the cloudflare proxy ip
     // we want to get the servers actual ip
-    const ip = ips.split(',')[0].trim();
+    const ip = ips.indexOf(',') == -1 ? ips : ips.split(',')[0].trim();
 
     console.log('New connection from IP:', ip);
 
