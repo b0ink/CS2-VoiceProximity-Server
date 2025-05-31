@@ -103,7 +103,7 @@ io.on('connection', async (socket: Socket<ClientToServerEvents, ServerToClientEv
 
   const apiKey = typeof query['api-key'] === 'string' ? query['api-key'] : null;
   const serverAddress = query['server-address'];
-  const serverPort = query['server-PORT'];
+  const serverPort = query['server-port'];
   const pluginVersion = query['plugin-version'];
   console.log(
     `Apikey: ${apiKey}, serverAddress: ${serverAddress}, serverPort: ${serverPort}, pluginVersion: ${pluginVersion}`,
