@@ -3,45 +3,66 @@ import path from 'path';
 
 dotenv.config({ path: path.resolve(__dirname, '.env') });
 
-if (process.env.COTURN_STATIC_AUTH_SECRET === null) {
+if (!process.env.COTURN_STATIC_AUTH_SECRET) {
   throw Error('Invalid or no COTURN_STATIC_AUTH_SECRET provided in environment variables.');
 }
 
-if (process.env.JWT_SECRET_KEY === null) {
+if (!process.env.JWT_SECRET_KEY) {
   throw Error('Invalid or no JWT_SECRET_KEY provided in environment variables.');
 }
 
-if (process.env.DEFAULT_SOCKET_API_KEY === null) {
-  throw Error('Invalid or no DEFAULT_SOCKET_API_KEY provided in environment variables.');
-}
-
-if (process.env.ADMIN_STEAM_ID === null) {
+if (!process.env.ADMIN_STEAM_ID) {
   throw Error('Invalid or no ADMIN_STEAM_ID provided in environment variables.');
 }
 
-const isProduction = process.env.NODE_ENV === 'production';
+if (!process.env.RESTART_WARNING_SECRET) {
+  throw Error('Invalid or no RESTART_WARNING_SECRET provided in environment variables.');
+}
+
+if (
+  isNaN(Number(process.env.RATELIMIT_ADMIN_POINTS)) ||
+  isNaN(Number(process.env.RATELIMIT_ADMIN_DURATION)) ||
+  isNaN(Number(process.env.RATELIMIT_PUBLIC_POINTS)) ||
+  isNaN(Number(process.env.RATELIMIT_PUBLIC_DURATION))
+) {
+  throw Error('Invalid or no RATELIMIT provided in environment variables.');
+}
+
+const RATELIMIT_ADMIN_POINTS = Number(process.env.RATELIMIT_ADMIN_POINTS);
+const RATELIMIT_ADMIN_DURATION = Number(process.env.RATELIMIT_ADMIN_DURATION);
+const RATELIMIT_PUBLIC_POINTS = Number(process.env.RATELIMIT_PUBLIC_POINTS);
+const RATELIMIT_PUBLIC_DURATION = Number(process.env.RATELIMIT_PUBLIC_DURATION);
+
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 const DEBUG = process.env.DEBUG || false;
-const port = Number(process.env.PORT) || 3000;
-const domain = process.env.DOMAIN_URL || 'localhost';
+const PORT = Number(process.env.PORT) || 3000;
+const DOMAIN = process.env.DOMAIN_URL || 'localhost';
 
-const apiKeyPrefix = process.env.API_KEY_PREFIX || 'test';
-const adminSteamId = process.env.ADMIN_STEAM_ID as string;
+const API_KEY_PREFIX = process.env.API_KEY_PREFIX || 'test';
+const ADMIN_STEAM_ID = process.env.ADMIN_STEAM_ID as string;
 
-const coturnStaticAuthSecret = process.env.COTURN_STATIC_AUTH_SECRET as string;
-const coturnCredentialsExpiry = process.env.COTURN_CREDENTIALS_EXPIRY
+const COTURN_AUTH_SECRET = process.env.COTURN_STATIC_AUTH_SECRET as string;
+const COTURN_CREDS_EXPIRY = process.env.COTURN_CREDENTIALS_EXPIRY
   ? parseInt(process.env.COTURN_CREDENTIALS_EXPIRY)
   : 24 * 3600; // 24 hours
 
-const jwtSecretKey = process.env.JWT_SECRET_KEY as string;
+const JWT_SECRET_KEY = process.env.JWT_SECRET_KEY as string;
+
+const RESTART_WARNING_SECRET = process.env.RESTART_WARNING_SECRET as string;
 
 export {
-  adminSteamId,
-  coturnCredentialsExpiry,
-  coturnStaticAuthSecret,
-  domain,
-  isProduction,
-  jwtSecretKey,
-  port,
+  ADMIN_STEAM_ID,
+  COTURN_CREDS_EXPIRY,
+  COTURN_AUTH_SECRET,
+  DOMAIN,
+  IS_PRODUCTION,
+  JWT_SECRET_KEY,
+  PORT,
   DEBUG,
-  apiKeyPrefix,
+  API_KEY_PREFIX,
+  RATELIMIT_ADMIN_POINTS,
+  RATELIMIT_ADMIN_DURATION,
+  RATELIMIT_PUBLIC_POINTS,
+  RATELIMIT_PUBLIC_DURATION,
+  RESTART_WARNING_SECRET,
 };

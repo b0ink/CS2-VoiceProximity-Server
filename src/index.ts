@@ -8,8 +8,16 @@ import { Server, Socket } from 'socket.io';
 import { decode, encode } from '@msgpack/msgpack';
 import { getApiKey, loadDb } from './api-keys';
 import { authenticateToken } from './authenticateToken';
-import { DEBUG, domain, port } from './config';
+import {
+  DEBUG,
+  DOMAIN,
+  PORT,
+  RATELIMIT_PUBLIC_DURATION,
+  RATELIMIT_PUBLIC_POINTS,
+  RESTART_WARNING_SECRET,
+} from './config';
 import adminApiKeys from './routes/admin/keys';
+import { adminRateLimit } from './routes/admin/middleware/adminRateLimit';
 import getTurnCredential from './routes/get-turn-credential';
 import verifySteam from './routes/verify-steam';
 import {
@@ -48,13 +56,28 @@ const MINIMUM_CLIENT_VERSION = '0.1.27-alpha.0';
 const MINIMUM_PLUGIN_VERSION = '0.0.22';
 
 const rateLimiter = new RateLimiterMemory({
-  points: 2, // 2 points
-  duration: 1, // per second
+  points: RATELIMIT_PUBLIC_POINTS,
+  duration: RATELIMIT_PUBLIC_DURATION,
 });
+
+app.post(
+  '/admin/restart-warning',
+  adminRateLimit,
+  async (req: Request, res: Response): Promise<void> => {
+    const auth = req.get('Authorization');
+    if (!auth || auth !== `Bearer ${RESTART_WARNING_SECRET}`) {
+      res.sendStatus(401);
+      return;
+    }
+    const minutes = req.body.minutes || 1;
+    io.emit('server-restart-warning', { minutes });
+    res.sendStatus(200);
+  },
+);
 
 const io = new Server<ClientToServerEvents, ServerToClientEvents>(server, {
   cors: {
-    // origin: isProduction ? domain : '*',
+    // origin: IS_PRODUCTION ? DOMAIN : '*',
     origin: '*',
     methods: ['GET', 'POST'],
   },
@@ -80,7 +103,7 @@ io.on('connection', async (socket: Socket<ClientToServerEvents, ServerToClientEv
 
   const apiKey = typeof query['api-key'] === 'string' ? query['api-key'] : null;
   const serverAddress = query['server-address'];
-  const serverPort = query['server-port'];
+  const serverPort = query['server-PORT'];
   const pluginVersion = query['plugin-version'];
   console.log(
     `Apikey: ${apiKey}, serverAddress: ${serverAddress}, serverPort: ${serverPort}, pluginVersion: ${pluginVersion}`,
@@ -99,7 +122,7 @@ io.on('connection', async (socket: Socket<ClientToServerEvents, ServerToClientEv
       };
       socket.emit('exception', socketError);
       socket.disconnect();
-      console.log(`Reject incoming connection (invalid api key, server address, or server port)`);
+      console.log(`Reject incoming connection (invalid api key, server address, or server PORT)`);
       return;
     }
 
@@ -140,7 +163,7 @@ io.on('connection', async (socket: Socket<ClientToServerEvents, ServerToClientEv
       });
       socket.disconnect();
       console.log(
-        `IP mismatch: expected ${serverAddress}, got ${ip} (port: ${serverPort}, apiKey: ${apiKey})`,
+        `IP mismatch: expected ${serverAddress}, got ${ip} (PORT: ${serverPort}, apiKey: ${apiKey})`,
       );
       return;
     }
@@ -621,6 +644,6 @@ io.on('connection', async (socket: Socket<ClientToServerEvents, ServerToClientEv
   });
 });
 
-server.listen(port, () => {
-  console.log(`Server running on http://${domain}:${port}`);
+server.listen(PORT, () => {
+  console.log(`Server running on http://${DOMAIN}:${PORT}`);
 });

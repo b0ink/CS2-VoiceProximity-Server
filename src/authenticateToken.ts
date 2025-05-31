@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import { domain, jwtSecretKey } from './config';
+import { DOMAIN, JWT_SECRET_KEY } from './config';
 import { JwtAuthPayload } from './types';
 
 export interface AuthData {
@@ -16,8 +16,8 @@ export function authenticateToken(jwtToken: string): AuthData {
   };
 
   try {
-    const verified = jwt.verify(jwtToken, jwtSecretKey, {
-      audience: domain,
+    const verified = jwt.verify(jwtToken, JWT_SECRET_KEY, {
+      audience: DOMAIN,
     });
     if (
       typeof verified === 'object' &&

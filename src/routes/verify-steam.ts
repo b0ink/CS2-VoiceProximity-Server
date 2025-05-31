@@ -1,6 +1,6 @@
 import { Request, Response, Router } from 'express';
 import jwt from 'jsonwebtoken';
-import { domain, isProduction, jwtSecretKey } from '../config';
+import { DOMAIN, IS_PRODUCTION, JWT_SECRET_KEY } from '../config';
 import { JwtAuthPayload, SteamOpenIDParams } from '../types';
 
 const router = Router();
@@ -32,15 +32,15 @@ router.get('/verify-steam', async (req: Request, res: Response) => {
     steamId: steamId64,
     iat: Math.floor(Date.now() / 1000),
     exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7,
-    aud: domain,
+    aud: DOMAIN,
   };
 
   try {
-    const token = jwt.sign(jwtPayload, jwtSecretKey);
+    const token = jwt.sign(jwtPayload, JWT_SECRET_KEY);
     res
       .cookie('token', token, {
         httpOnly: true,
-        secure: isProduction,
+        secure: IS_PRODUCTION,
         maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
         sameSite: 'lax',
       })

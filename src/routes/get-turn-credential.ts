@@ -1,8 +1,8 @@
 import crypto from 'crypto';
 import { Request, Response, Router } from 'express';
-import jwt from 'jsonwebtoken';
-import { coturnCredentialsExpiry, coturnStaticAuthSecret, domain, jwtSecretKey } from '../config';
-import { JwtAuthPayload, SteamIdTurnCredentialMap, TurnCredential } from '../types';
+import { authenticateToken } from '../authenticateToken';
+import { COTURN_AUTH_SECRET, COTURN_CREDS_EXPIRY } from '../config';
+import { SteamIdTurnCredentialMap, TurnCredential } from '../types';
 
 const router = Router();
 const turnCredentials: SteamIdTurnCredentialMap = {};
@@ -11,29 +11,19 @@ router.get('/get-turn-credential', async (req: Request, res: Response) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
 
-  // const credentials = getTURNCredentials('76561197972732773');
-  // return res.status(200).json({ message: 'Success', data: credentials });
-
   if (!token) {
     res.status(401).json({ message: 'Unauthorised' });
     return;
   }
-  try {
-    const verified = jwt.verify(token, jwtSecretKey, {
-      audience: domain,
-    });
-    const payload = verified as JwtAuthPayload;
-    if (payload.steamId) {
-      const credentials = getTURNCredentials(payload.steamId);
-      res.status(200).json({ message: 'Success', data: credentials });
-      return;
-    }
-  } catch (e) {
-    console.error(e);
+
+  const authData = await authenticateToken(token);
+  if (!authData || !authData.valid || !authData?.payload?.steamId) {
     res.status(401).json({ message: 'Unauthorised' });
     return;
   }
-  res.status(500).json({ message: 'Unauthorised' });
+  const credentials = getTURNCredentials(authData.payload.steamId);
+  res.status(200).json({ message: 'Success', data: credentials });
+  return;
 });
 
 const getTURNCredentials = (steamId64: string) => {
@@ -53,9 +43,9 @@ const getTURNCredentials = (steamId64: string) => {
     }
   }
 
-  const unixTimeStamp = Math.floor(Date.now() / 1000) + coturnCredentialsExpiry; // this credential would be valid for the next 24 hours
+  const unixTimeStamp = Math.floor(Date.now() / 1000) + COTURN_CREDS_EXPIRY; // this credential would be valid for the next 24 hours
   const username = [unixTimeStamp, steamId64].join(':');
-  const hmac = crypto.createHmac('sha1', coturnStaticAuthSecret);
+  const hmac = crypto.createHmac('sha1', COTURN_AUTH_SECRET);
   hmac.setEncoding('base64');
   hmac.write(username);
   hmac.end();

@@ -17,6 +17,7 @@ export interface ServerToClientEvents {
   signal: (data: { from: string; data: Peer.SignalData; client: Client }) => void;
   'microphone-state': (socketId: string, isMuted: boolean) => void;
   'muted-by-server-admin': () => void;
+  'server-restart-warning': (data: { minutes: number }) => void;
 }
 
 export interface ClientToServerEvents {

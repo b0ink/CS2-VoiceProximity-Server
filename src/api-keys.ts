@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import path from 'path';
-import { apiKeyPrefix } from './config';
+import { API_KEY_PREFIX } from './config';
 
 export type ApiKeyData = {
   id: crypto.UUID;
@@ -69,7 +69,7 @@ export async function getApiKey(key: string): Promise<ApiKey | null> {
 export function generateApiKey(label: string, expiresIn: number): ApiKey {
   const apiKey = new ApiKey({
     id: crypto.randomUUID(),
-    key: `${apiKeyPrefix}_${crypto
+    key: `${API_KEY_PREFIX}_${crypto
       .randomBytes(32)
       .toString('base64')
       .replace(/[^a-zA-Z0-9]/g, '')
