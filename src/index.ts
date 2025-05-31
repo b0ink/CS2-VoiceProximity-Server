@@ -118,7 +118,19 @@ io.on('connection', async (socket: Socket<ClientToServerEvents, ServerToClientEv
       return;
     }
 
-    const ip = socket.handshake.headers['x-forwarded-for'];
+    const ips = socket.handshake.headers['x-forwarded-for'];
+    if (!ips || typeof ips !== 'string') {
+      socket.emit('exception', {
+        code: SocketApiErrorType.InvalidServerIp,
+        message: 'Invalid IP found in socket connection',
+      });
+      return;
+    }
+
+    // should contain both actual ip and the cloudflare proxy ip
+    // we want to get the servers actual ip
+    const ip = ips.split(',')[0].trim();
+
     console.log('New connection from IP:', ip);
 
     if (ip !== serverAddress) {
