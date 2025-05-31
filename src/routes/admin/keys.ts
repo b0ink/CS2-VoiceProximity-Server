@@ -41,7 +41,6 @@ router.post(
 
     res.status(200).json({
       ...newKey,
-      key: newKey.censoredKey,
     });
   },
 );
