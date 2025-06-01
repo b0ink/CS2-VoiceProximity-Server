@@ -62,6 +62,7 @@ export class RoomData {
     occlusionFalloffExponent: 3,
     alwaysHearVisiblePlayers: true,
     deadVoiceFilterFrequency: 750,
+    spectatorsCanTalk: false,
   };
 
   constructor(roomCode: string, maxPlayers?: number) {

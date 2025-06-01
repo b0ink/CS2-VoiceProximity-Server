@@ -218,6 +218,7 @@ io.on('connection', async (socket: Socket<ClientToServerEvents, ServerToClientEv
         occlusionFalloffExponent: (raw.OcclusionFalloffExponent as number | undefined) ?? 3,
         alwaysHearVisiblePlayers: (raw.AlwaysHearVisiblePlayers as boolean | undefined) ?? true,
         deadVoiceFilterFrequency: (raw.DeadVoiceFilterFrequency as number | undefined) ?? 750,
+        spectatorsCanTalk: (raw.SpectatorsCanTalk as boolean | undefined) ?? false,
       };
       room.serverConfig = decoded;
       if (DEBUG) {
@@ -542,25 +543,12 @@ io.on('connection', async (socket: Socket<ClientToServerEvents, ServerToClientEv
       }
 
       console.log(`updating config`, JSON.stringify(data));
-      const config: ServerConfigData = {
-        deadPlayerMuteDelay:
-          data.config.deadPlayerMuteDelay ?? room.serverConfig.deadPlayerMuteDelay,
-        allowDeadTeamVoice: data.config.allowDeadTeamVoice ?? room.serverConfig.allowDeadTeamVoice,
-        allowSpectatorC4Voice:
-          data.config.allowSpectatorC4Voice ?? room.serverConfig.allowSpectatorC4Voice,
-        volumeFalloffFactor:
-          data.config.volumeFalloffFactor ?? room.serverConfig.volumeFalloffFactor,
-        volumeMaxDistance: data.config.volumeMaxDistance ?? room.serverConfig.volumeMaxDistance,
-        occlusionNear: data.config.occlusionNear ?? room.serverConfig.occlusionNear,
-        occlusionFar: data.config.occlusionFar ?? room.serverConfig.occlusionFar,
-        occlusionEndDist: data.config.occlusionEndDist ?? room.serverConfig.occlusionEndDist,
-        occlusionFalloffExponent:
-          data.config.occlusionFalloffExponent ?? room.serverConfig.occlusionFalloffExponent,
-        alwaysHearVisiblePlayers:
-          data.config.alwaysHearVisiblePlayers ?? room.serverConfig.alwaysHearVisiblePlayers,
-        deadVoiceFilterFrequency:
-          data.config.deadVoiceFilterFrequency ?? room.serverConfig.deadVoiceFilterFrequency,
-      };
+      const config = { ...room.serverConfig };
+
+      for (const key of Object.keys(room.serverConfig) as (keyof ServerConfigData)[]) {
+        assignConfigKey(config, data.config, room.serverConfig, key);
+      }
+
       room.serverConfig = config;
       const buffer: Buffer = Buffer.from(encode(config));
 
@@ -650,3 +638,12 @@ io.on('connection', async (socket: Socket<ClientToServerEvents, ServerToClientEv
 server.listen(PORT, () => {
   console.log(`Server running on http://${DOMAIN}:${PORT}`);
 });
+
+function assignConfigKey<K extends keyof ServerConfigData>(
+  config: ServerConfigData,
+  dataConfig: Partial<ServerConfigData>,
+  roomConfig: ServerConfigData,
+  key: K,
+) {
+  config[key] = dataConfig[key] ?? roomConfig[key];
+}

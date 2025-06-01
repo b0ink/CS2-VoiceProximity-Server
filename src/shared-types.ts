@@ -83,4 +83,5 @@ export interface ServerConfigData {
   occlusionFalloffExponent: number; // Controls how quickly occlusion drops off with distance (higher = steeper drop near end, lower = more gradual fade)
   alwaysHearVisiblePlayers: boolean; // Players are audible if they are within view, regardless of max distance settings
   deadVoiceFilterFrequency: number; // How "thin" or radio-like players sound when dead (0 disables the effect)
+  spectatorsCanTalk: boolean; // Can Ts & CTs hear spectators?
 }
