@@ -80,7 +80,7 @@ export interface ServerConfigData {
   occlusionNear: number; // The maximum occlusion level for players fully behind a wall at the closest distance (0 is fully occluded)
   occlusionFar: number; // The maximum occlusion when player's distance reaches OcclusionEnd
   occlusionEndDist: number; // Distance from player where it fully reaches OcclusionFar
-  occlusionFalloffExponent: number; // Controls how quickly occlusion drops off with distance (higher = steeper drop near end, lower = more gradual fade)
+  occlusionFalloffFactor: number; // Controls how quickly occlusion drops off with distance (higher = steeper drop near end, lower = more gradual fade)
   alwaysHearVisiblePlayers: boolean; // Players are audible if they are within view, regardless of max distance settings
   deadVoiceFilterFrequency: number; // How "thin" or radio-like players sound when dead (0 disables the effect)
   spectatorsCanTalk: boolean; // Can Ts & CTs hear spectators?

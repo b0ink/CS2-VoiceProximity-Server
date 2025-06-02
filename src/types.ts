@@ -59,7 +59,7 @@ export class RoomData {
     occlusionNear: 300,
     occlusionFar: 25,
     occlusionEndDist: 2000,
-    occlusionFalloffExponent: 3,
+    occlusionFalloffFactor: 3,
     alwaysHearVisiblePlayers: true,
     deadVoiceFilterFrequency: 750,
     spectatorsCanTalk: false,
