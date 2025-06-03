@@ -229,7 +229,7 @@ io.on('connection', async (socket: Socket<ClientToServerEvents, ServerToClientEv
 
     socket.on('door-rotation', (from, origin, rotation) => {
       console.log(`got door rotation: ${from}, ${origin}, ${rotation}`);
-      const originValues = origin.split(',');
+      const originValues = origin.split(' ');
       // TODO: validate originValues are all numbers and have 3 indexes
       const absorigin = {
         x: Number(originValues[0]),
