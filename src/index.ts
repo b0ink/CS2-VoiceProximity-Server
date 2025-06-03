@@ -227,6 +227,21 @@ io.on('connection', async (socket: Socket<ClientToServerEvents, ServerToClientEv
       io.to(serverId).emit('server-config', data);
     });
 
+    socket.on('door-rotation', (from, origin, rotation) => {
+      console.log(`got door rotation: ${from}, ${origin}, ${rotation}`);
+      const originValues = origin.split(',');
+      // TODO: validate originValues are all numbers and have 3 indexes
+      const absorigin = {
+        x: Number(originValues[0]),
+        y: Number(originValues[1]),
+        z: Number(originValues[2]),
+      };
+      io.to(serverId).emit('door-rotation', {
+        absorigin,
+        rotation,
+      });
+    });
+
     socket.on('player-positions', (_from: string, data: Buffer<ArrayBufferLike>) => {
       const secondsSinceUpdate = Date.now() / 1000 - room.lastUpdateFromServer;
 
