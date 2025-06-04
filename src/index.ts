@@ -52,8 +52,8 @@ app.use('/admin', adminApiKeys);
 const server = http.createServer(app);
 
 // TODO: pull the latest version from the latest github release
-const MINIMUM_CLIENT_VERSION = '0.1.30-alpha.0';
-const MINIMUM_PLUGIN_VERSION = '0.0.25';
+const MINIMUM_CLIENT_VERSION = '0.1.32-alpha.0';
+const MINIMUM_PLUGIN_VERSION = '0.0.26';
 
 const rateLimiter = new RateLimiterMemory({
   points: RATELIMIT_PUBLIC_POINTS,
