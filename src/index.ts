@@ -289,7 +289,7 @@ io.on('connection', async (socket: Socket<ClientToServerEvents, ServerToClientEv
       io.volatile.to(serverId).emit('player-positions', encodedPlayers);
 
       // const decoded = decode(new Uint8Array(data)) as [string, string, boolean][];
-      const minimalPlayerList = filteredPlayers.map((p) => ({
+      const minimalPlayerList = players.map((p) => ({
         SteamId: p.steamId,
         Name: p.name,
         isAdmin: p.isAdmin,
