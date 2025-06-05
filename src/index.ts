@@ -31,6 +31,7 @@ import {
   SocketApiErrorType,
 } from './shared-types';
 import { JoinedPlayers, RoomData, ServerPlayer } from './types';
+import { decodePlayerData } from './utils/decode';
 
 const app = express();
 app.use(express.static(path.join(__dirname, '../src/public')));
@@ -257,16 +258,45 @@ io.on('connection', async (socket: Socket<ClientToServerEvents, ServerToClientEv
         return;
       }
 
-      io.volatile.to(serverId).volatile.emit('player-positions', data);
+      const players = decodePlayerData(data);
 
-      const decoded = decode(new Uint8Array(data)) as [string, string, boolean][];
-      const minimalPlayerList = decoded.map(([SteamId, Name, isAdmin]) => ({
-        SteamId,
-        Name,
-        isAdmin,
+      // Only include position data for players currently in the voice chat
+      const filteredPlayers = players.filter((p) => {
+        const joinedPlayer = room.joinedPlayers.find((plr) => plr.steamId === p.steamId);
+        return joinedPlayer && Date.now() / 1000 - joinedPlayer.lastTimeOnServer <= 5;
+      });
+
+      // re-encode filtered player list to send clients
+      const encodedPlayers: Buffer = Buffer.from(
+        encode(
+          filteredPlayers.map((p) => [
+            p.steamId,
+            p.name,
+            p.isAdmin,
+            p.originX,
+            p.originY,
+            p.originZ,
+            p.lookAtX,
+            p.lookAtY,
+            p.lookAtZ,
+            p.team,
+            p.isAlive,
+            p.spectatingC4,
+          ]),
+        ),
+      );
+
+      io.volatile.to(serverId).emit('player-positions', encodedPlayers);
+
+      // const decoded = decode(new Uint8Array(data)) as [string, string, boolean][];
+      const minimalPlayerList = filteredPlayers.map((p) => ({
+        SteamId: p.steamId,
+        Name: p.name,
+        isAdmin: p.isAdmin,
       })) as ServerPlayer[];
-      for (const player of minimalPlayerList) {
-        const playerPeer = room.joinedPlayers.find((plr) => plr.steamId === player.SteamId);
+
+      for (const player of filteredPlayers) {
+        const playerPeer = room.joinedPlayers.find((plr) => plr.steamId === player.steamId);
         if (playerPeer) {
           playerPeer.lastTimeOnServer = Date.now() / 1000;
         } else {

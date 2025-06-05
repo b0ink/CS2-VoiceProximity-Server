@@ -72,3 +72,25 @@ export class RoomData {
     this.lastUpdateFromServer = Date.now() / 1000;
   }
 }
+
+export enum CsTeam {
+  None = 0,
+  Spectator = 1,
+  Terrorist = 2,
+  CounterTerrorist = 3,
+}
+
+export interface PlayerPositionApiData {
+  steamId?: string;
+  name?: string;
+  isAdmin?: boolean;
+  originX?: number;
+  originY?: number;
+  originZ?: number;
+  lookAtX?: number;
+  lookAtY?: number;
+  lookAtZ?: number;
+  team?: CsTeam;
+  isAlive?: boolean;
+  spectatingC4?: boolean;
+}
