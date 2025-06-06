@@ -273,6 +273,11 @@ io.on('connection', async (socket: Socket<ClientToServerEvents, ServerToClientEv
         return joinedPlayer && Date.now() / 1000 - joinedPlayer.lastTimeOnServer <= 5;
       });
 
+      // Reduce broadcast rate to 1/s if theres less than 2 players in the room
+      if (filteredPlayers.length <= 1 && secondsSinceUpdate < 0.9) {
+        return;
+      }
+
       // re-encode filtered player list to send clients
       const encodedPlayers: Buffer = Buffer.from(
         encode(
