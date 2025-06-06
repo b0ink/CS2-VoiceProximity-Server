@@ -44,7 +44,10 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
 app.get('/', (req: Request, res: Response) =>
-  res.render('index', { connectedUsers: totalConnectedUsers() }),
+  res.render('index', {
+    connectedUsers: totalConnectedUsers(),
+    connectedServers: totalConnectdServers(),
+  }),
 );
 app.use('/', verifySteam);
 app.use('/', getTurnCredential);
@@ -85,7 +88,11 @@ const io = new Server<ClientToServerEvents, ServerToClientEvents>(server, {
 });
 
 const totalConnectedUsers = () => {
-  return io.of('/').sockets.size;
+  return io.of('/').sockets.size - rooms.length;
+};
+
+const totalConnectdServers = () => {
+  return rooms.length;
 };
 // io.engine.set('trust proxy', true);
 
