@@ -407,7 +407,6 @@ io.on('connection', async (socket: Socket<ClientToServerEvents, ServerToClientEv
   }
 
   // Handle joining a room
-  // TODO: steamId and clientId are the same right now
   socket.on('join-room', async (data: JoinRoomData, callback: JoinRoomCallback) => {
     //TODO; capacity limits on joining room
     console.log('user joining room');
@@ -504,7 +503,6 @@ io.on('connection', async (socket: Socket<ClientToServerEvents, ServerToClientEv
 
     room.clients.set(socket.id, {
       steamId: validSteamId,
-      clientId: validSteamId,
       isMuted: data.isMuted,
     });
 
@@ -526,7 +524,6 @@ io.on('connection', async (socket: Socket<ClientToServerEvents, ServerToClientEv
         room.joinedPlayers = room.joinedPlayers.filter((player) => player.socketId !== socket.id);
         socket.to(data.roomCode).emit('user-left', socket.id, {
           steamId: validSteamId,
-          clientId: validSteamId,
           isMuted: false,
         });
         socket.leave(data.roomCode);
@@ -542,7 +539,6 @@ io.on('connection', async (socket: Socket<ClientToServerEvents, ServerToClientEv
     console.log(
       `calling user-joined with ${socket.id} ${JSON.stringify({
         steamId: validSteamId,
-        clientId: validSteamId,
       })}`,
     );
 
@@ -646,7 +642,6 @@ io.on('connection', async (socket: Socket<ClientToServerEvents, ServerToClientEv
         data: signalData,
         client: {
           steamId: data.steamId,
-          clientId: data.steamId,
           isMuted: room.clients.get(socket.id)?.isMuted ?? false,
         },
       });
@@ -683,7 +678,6 @@ io.on('connection', async (socket: Socket<ClientToServerEvents, ServerToClientEv
       if (validSteamId) {
         socket.to(data.roomCode).emit('user-left', socket.id, {
           steamId: validSteamId,
-          clientId: validSteamId,
           isMuted: false,
         });
       }
