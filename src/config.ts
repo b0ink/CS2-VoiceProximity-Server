@@ -3,10 +3,6 @@ import path from 'path';
 
 dotenv.config({ path: path.resolve(__dirname, '.env') });
 
-if (!process.env.COTURN_STATIC_AUTH_SECRET) {
-  throw Error('Invalid or no COTURN_STATIC_AUTH_SECRET provided in environment variables.');
-}
-
 if (!process.env.JWT_SECRET_KEY) {
   throw Error('Invalid or no JWT_SECRET_KEY provided in environment variables.');
 }
@@ -41,19 +37,12 @@ const DOMAIN = process.env.DOMAIN_URL || 'localhost';
 const API_KEY_PREFIX = process.env.API_KEY_PREFIX || 'test';
 const ADMIN_STEAM_ID = process.env.ADMIN_STEAM_ID as string;
 
-const COTURN_AUTH_SECRET = process.env.COTURN_STATIC_AUTH_SECRET as string;
-const COTURN_CREDS_EXPIRY = process.env.COTURN_CREDENTIALS_EXPIRY
-  ? parseInt(process.env.COTURN_CREDENTIALS_EXPIRY)
-  : 24 * 3600; // 24 hours
-
 const JWT_SECRET_KEY = process.env.JWT_SECRET_KEY as string;
 
 const RESTART_WARNING_SECRET = process.env.RESTART_WARNING_SECRET as string;
 
 export {
   ADMIN_STEAM_ID,
-  COTURN_CREDS_EXPIRY,
-  COTURN_AUTH_SECRET,
   DOMAIN,
   IS_PRODUCTION,
   JWT_SECRET_KEY,

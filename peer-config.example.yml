@@ -1,0 +1,33 @@
+# IN ORDER TO USE THIS CONFIG FILE, RENAME IT AND REMOVE THE ".example" PART OF THE FILENAME
+#
+# CS2 Voice Proximity Chat ICE configuration.
+#
+# This file controls how players connect to each other using STUN and TURN servers.
+#
+# Players connect peer-to-peer for voice chat, but TURN servers help when direct connections fail
+# or to protect player IP addresses by relaying traffic.
+
+# Set to true to force all connections through TURN servers only.
+# This hides player IPs and avoids direct peer-to-peer connections.
+forceRelayOnly: false
+
+iceServers:
+  # Public STUN servers (used for NAT traversal when direct peer connections are enabled)
+  - url: 'stun:stun.l.google.com:19302'
+  - url: 'stun:stun1.l.google.com:19302'
+  - url: 'stun:stun2.l.google.com:19302'
+
+  # TURN server using static, shared credentials
+  # All clients will receive the same username/password
+  # These credentials are exposed to all clients and should only be used in trusted or low-risk environments
+  - url: 'turn:example.com:3478'
+    defaultUsername: 'default_turn_username'
+    defaultPassword: 'default_turn_password'
+
+  # TURN server using Coturn's static-auth-secret mode
+  # Credentials are generated per-client (e.g., per Steam ID) using HMAC
+  # The static-auth-secret is used only by the API and is never exposed to clients
+  - url: 'turn:example2.com:443'
+    coturnStaticAuthSecret: 'static_auth_secret'
+    credentialExpiry: 7200 # Credentials expire after 1 hours
+    credentialsRenewalWindow: 3600 # Credentials are rotated within a 1 hour window
