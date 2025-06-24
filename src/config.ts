@@ -45,8 +45,14 @@ const JWT_SECRET_KEY = process.env.JWT_SECRET_KEY as string;
 
 const RESTART_WARNING_SECRET = process.env.RESTART_WARNING_SECRET as string;
 
-const peerConfigFile = fs.readFileSync('peer-config.yml', 'utf8');
-const ICE_SERVER_CONFIG: TurnConfig = yaml.parse(peerConfigFile);
+let ICE_SERVER_CONFIG: TurnConfig;
+
+try {
+  const peerConfigFile = fs.readFileSync('peer-config.yml', 'utf8');
+  ICE_SERVER_CONFIG = yaml.parse(peerConfigFile);
+} catch (error) {
+  throw new Error(`Failed to load peer-config.yml: ${error}`);
+}
 
 export {
   ADMIN_STEAM_ID,
