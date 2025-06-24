@@ -4,7 +4,8 @@ import path from 'path';
 import yaml from 'yaml';
 import { TurnConfig } from './types';
 
-dotenv.config({ path: path.resolve(__dirname, '.env') });
+// __dirname is the /dist directory, but we want to look in the project root directory instead
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 if (!process.env.JWT_SECRET_KEY) {
   throw Error('Invalid or no JWT_SECRET_KEY provided in environment variables.');
