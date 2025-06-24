@@ -18,7 +18,7 @@ import {
 } from './config';
 import adminApiKeys from './routes/admin/keys';
 import { adminRateLimit } from './routes/admin/middleware/adminRateLimit';
-import getTurnCredential from './routes/get-turn-credential';
+import getTurnCredential from './routes/get-ice-servers';
 import verifySteam from './routes/verify-steam';
 import {
   ClientToServerEvents,
@@ -688,7 +688,7 @@ io.on('connection', async (socket: Socket<ClientToServerEvents, ServerToClientEv
 });
 
 server.listen(PORT, () => {
-  console.log(`Server running on http://${DOMAIN}:${PORT}`);
+  console.log(`Server running on ${DOMAIN}:${PORT}`);
 });
 
 function assignConfigKey<K extends keyof ServerConfigData>(

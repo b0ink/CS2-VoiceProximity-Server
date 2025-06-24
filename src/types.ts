@@ -1,4 +1,4 @@
-import { Client, ServerConfigData } from './shared-types';
+import { Client, ServerConfigData, TurnCredential } from './shared-types';
 
 export interface SteamOpenIDParams {
   ns?: string;
@@ -20,9 +20,18 @@ export interface JwtAuthPayload {
   aud?: string;
 }
 
-export interface TurnCredential {
-  username: string;
-  password: string;
+export interface IceServerConfig {
+  urls: string;
+  defaultUsername?: string;
+  defaultPassword?: string;
+  coturnStaticAuthSecret?: string;
+  credentialExpiry?: number;
+  credentialsRenewalWindow?: number;
+}
+
+export interface TurnConfig {
+  forceRelayOnly: boolean;
+  iceServers: IceServerConfig[];
 }
 
 export interface SteamIdTurnCredentialMap {
