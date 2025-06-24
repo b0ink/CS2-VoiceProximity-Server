@@ -1,5 +1,8 @@
 import dotenv from 'dotenv';
+import fs from 'fs';
 import path from 'path';
+import yaml from 'yaml';
+import { TurnConfig } from './types';
 
 dotenv.config({ path: path.resolve(__dirname, '.env') });
 
@@ -41,6 +44,9 @@ const JWT_SECRET_KEY = process.env.JWT_SECRET_KEY as string;
 
 const RESTART_WARNING_SECRET = process.env.RESTART_WARNING_SECRET as string;
 
+const peerConfigFile = fs.readFileSync('peer-config.yml', 'utf8');
+const ICE_SERVER_CONFIG: TurnConfig = yaml.parse(peerConfigFile);
+
 export {
   ADMIN_STEAM_ID,
   DOMAIN,
@@ -54,4 +60,5 @@ export {
   RATELIMIT_PUBLIC_POINTS,
   RATELIMIT_PUBLIC_DURATION,
   RESTART_WARNING_SECRET,
+  ICE_SERVER_CONFIG,
 };

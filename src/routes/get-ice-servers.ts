@@ -1,10 +1,8 @@
 import crypto from 'crypto';
 import { Request, Response, Router } from 'express';
-import fs from 'fs';
-import yaml from 'yaml';
 import { authenticateToken } from '../authenticateToken';
+import { ICE_SERVER_CONFIG } from '../config';
 import { IceServer, TurnCredential } from '../shared-types';
-import { TurnConfig } from '../types';
 
 const router = Router();
 
@@ -32,12 +30,9 @@ router.get('/get-ice-servers', async (req: Request, res: Response) => {
     return;
   }
 
-  const file = fs.readFileSync('peer-config.yml', 'utf8');
-  const iceServerConfig: TurnConfig = yaml.parse(file);
-
   const iceServers: IceServer[] = [];
 
-  for (const iceServer of iceServerConfig.iceServers) {
+  for (const iceServer of ICE_SERVER_CONFIG.iceServers) {
     const server: IceServer = {
       type: 'STUN',
       uri: iceServer.urls,
@@ -59,7 +54,7 @@ router.get('/get-ice-servers', async (req: Request, res: Response) => {
         };
       }
     }
-    if (iceServerConfig.forceRelayOnly && server.type !== 'TURN') {
+    if (ICE_SERVER_CONFIG.forceRelayOnly && server.type !== 'TURN') {
       continue;
     }
     iceServers.push(server);
@@ -69,7 +64,7 @@ router.get('/get-ice-servers', async (req: Request, res: Response) => {
     message: 'Success',
     data: {
       iceServers: iceServers,
-      forceRelayOnly: iceServerConfig.forceRelayOnly,
+      forceRelayOnly: ICE_SERVER_CONFIG.forceRelayOnly,
     },
   });
   return;
