@@ -29,5 +29,5 @@ iceServers:
   # The static-auth-secret is used only by the API and is never exposed to clients
   - url: 'turn:example2.com:443'
     coturnStaticAuthSecret: 'static_auth_secret'
-    credentialExpiry: 7200 # Credentials expire after 1 hours
+    credentialExpiry: 7200 # Credentials expire after 2 hours
     credentialsRenewalWindow: 3600 # Credentials are rotated within a 1 hour window
