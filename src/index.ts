@@ -266,6 +266,11 @@ io.on('connection', async (socket: Socket<ClientToServerEvents, ServerToClientEv
       }
 
       const players = decodePlayerData(data);
+      const DEBUG_STEAM = '76561197972732773'; // boink
+      const boink = players.find((p) => p.steamId === DEBUG_STEAM);
+      if (boink) {
+        console.log('[decode boink occlusionFraction]', boink.occlusionFraction);
+      }
 
       // Only include position data for players currently in the voice chat
       const filteredPlayers = players.filter((p) => {
@@ -292,6 +297,11 @@ io.on('connection', async (socket: Socket<ClientToServerEvents, ServerToClientEv
 
         const listenerData = playersBySteamId.get(joinedPlayer.steamId);
         const listenerOcclusionRow = listenerData?.occlusionFraction ?? {};
+
+        const boinkOcclusionForThisListener = listenerOcclusionRow[DEBUG_STEAM] ?? 0;
+        console.log(
+          `[fanout listener=${joinedPlayer.steamId}] boinkOcclusion=${boinkOcclusionForThisListener}`,
+        );
 
         const encodedPlayersForListener: Buffer = Buffer.from(
           encode(
