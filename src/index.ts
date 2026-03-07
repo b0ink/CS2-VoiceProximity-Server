@@ -278,27 +278,72 @@ io.on('connection', async (socket: Socket<ClientToServerEvents, ServerToClientEv
         return;
       }
 
-      // re-encode filtered player list to send clients
-      const encodedPlayers: Buffer = Buffer.from(
-        encode(
-          filteredPlayers.map((p) => [
-            p.steamId,
-            p.name,
-            p.isAdmin,
-            p.originX,
-            p.originY,
-            p.originZ,
-            p.lookAtX,
-            p.lookAtY,
-            p.lookAtZ,
-            p.team,
-            p.isAlive,
-            p.spectatingC4,
-          ]),
-        ),
-      );
+      const playersBySteamId: Map<string, (typeof filteredPlayers)[number]> = new Map();
+      for (const player of filteredPlayers) {
+        if (player.steamId) {
+          playersBySteamId.set(player.steamId, player);
+        }
+      }
 
-      io.volatile.to(serverId).emit('player-positions', encodedPlayers);
+      for (const joinedPlayer of room.joinedPlayers) {
+        if (!joinedPlayer.socketId || !joinedPlayer.steamId) {
+          continue;
+        }
+
+        const listenerData = playersBySteamId.get(joinedPlayer.steamId);
+        const listenerOcclusionRow = listenerData?.occlusionFraction ?? {};
+
+        const encodedPlayersForListener: Buffer = Buffer.from(
+          encode(
+            filteredPlayers.map((p) => {
+              const targetSteamId = p.steamId ?? '';
+              let occlusion = 0;
+              if (targetSteamId && targetSteamId !== joinedPlayer.steamId) {
+                occlusion = listenerOcclusionRow[targetSteamId] ?? 0;
+              }
+
+              return [
+                p.steamId,
+                p.name,
+                p.isAdmin,
+                p.originX,
+                p.originY,
+                p.originZ,
+                p.lookAtX,
+                p.lookAtY,
+                p.lookAtZ,
+                p.team,
+                p.isAlive,
+                p.spectatingC4,
+                occlusion,
+              ];
+            }),
+          ),
+        );
+
+        io.volatile.to(joinedPlayer.socketId).emit('player-positions', encodedPlayersForListener);
+      }
+
+      // Deprecated fanout strategy (kept for reference):
+      // const encodedPlayers: Buffer = Buffer.from(
+      //   encode(
+      //     filteredPlayers.map((p) => [
+      //       p.steamId,
+      //       p.name,
+      //       p.isAdmin,
+      //       p.originX,
+      //       p.originY,
+      //       p.originZ,
+      //       p.lookAtX,
+      //       p.lookAtY,
+      //       p.lookAtZ,
+      //       p.team,
+      //       p.isAlive,
+      //       p.spectatingC4,
+      //     ]),
+      //   ),
+      // );
+      // io.volatile.to(serverId).emit('player-positions', encodedPlayers);
 
       // const decoded = decode(new Uint8Array(data)) as [string, string, boolean][];
       const minimalPlayerList = players.map((p) => ({

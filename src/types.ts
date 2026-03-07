@@ -102,4 +102,5 @@ export interface PlayerPositionApiData {
   team?: CsTeam;
   isAlive?: boolean;
   spectatingC4?: boolean;
+  occlusionFraction?: Record<string, number>;
 }
