@@ -681,13 +681,18 @@ io.on('connection', async (socket: Socket<ClientToServerEvents, ServerToClientEv
     // Handle signaling (peer-to-peer connectio+ns)
     socket.on('signal', (signal: Signal) => {
       const { to, data: signalData } = signal;
-      console.log(`OnSIgnal: ${JSON.stringify(data)}`);
+      const client = room.clients.get(socket.id);
+      if (!client || !room.clients.has(to)) {
+        return;
+      }
+
+      console.log(`OnSignal: ${socket.id} -> ${to}`);
       io.to(to).emit('signal', {
         from: socket.id,
         data: signalData,
         client: {
-          steamId: data.steamId,
-          isMuted: room.clients.get(socket.id)?.isMuted ?? false,
+          steamId: validSteamId,
+          isMuted: client.isMuted,
         },
       });
     });
