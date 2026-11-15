@@ -5,6 +5,12 @@ export interface Client {
   isMuted: boolean;
 }
 
+export interface PlayerMetadata {
+  steamId: string;
+  name: string;
+  isAdmin: boolean;
+}
+
 export interface TurnCredential {
   username: string;
   password: string;
@@ -20,6 +26,7 @@ export interface ServerToClientEvents {
   'current-map': (mapName: string) => void;
   'server-config': (data: Buffer<ArrayBufferLike>) => void;
   'player-positions': (data: Buffer<ArrayBufferLike>) => void;
+  'player-metadata': (players: PlayerMetadata[]) => void;
   exception: (string: SocketApiError) => void;
   'player-on-server': (data: { roomCode: string }) => void;
   'user-left': (socketId: string, client: Client) => void;
