@@ -252,29 +252,45 @@ io.on('connection', async (socket: Socket<ClientToServerEvents, ServerToClientEv
     });
 
     socket.on('player-positions', (_from: string, data: Buffer<ArrayBufferLike>) => {
-      const secondsSinceUpdate = Date.now() / 1000 - room.lastUpdateFromServer;
+      const now = Date.now() / 1000;
+      const players = decodePlayerData(data);
+
+      // Refresh presence even when this position snapshot won't be broadcast.
+      room.playersOnServer = players.map((p) => ({
+        SteamId: p.steamId,
+        Name: p.name,
+        isAdmin: p.isAdmin,
+      })) as ServerPlayer[];
+
+      const presentSteamIds = new Set(players.map((p) => p.steamId));
+      for (const joinedPlayer of room.joinedPlayers) {
+        if (joinedPlayer.steamId && presentSteamIds.has(joinedPlayer.steamId)) {
+          joinedPlayer.lastTimeOnServer = now;
+        }
+      }
+      room.lastUpdateFromServer = now;
+
+      const secondsSinceBroadcast = now - room.lastPlayerPositionsBroadcastAt;
 
       if (DEBUG) {
         // const sizeKb = Buffer.byteLength(data) / 1024;
         // console.log(`Data size: ${sizeKb.toFixed(2)} KB`);
-        // console.log(`seconds since update from socket: ${socket.id}: ${secondsSinceUpdate}`);
+        // console.log(`seconds since broadcast: ${secondsSinceBroadcast}`);
       }
 
-      if (secondsSinceUpdate < 0.09) {
+      if (secondsSinceBroadcast < 0.09) {
         // console.log('Update from server was too quick, ignoring');
         return;
       }
 
-      const players = decodePlayerData(data);
-
       // Only include position data for players currently in the voice chat
       const filteredPlayers = players.filter((p) => {
         const joinedPlayer = room.joinedPlayers.find((plr) => plr.steamId === p.steamId);
-        return joinedPlayer && Date.now() / 1000 - joinedPlayer.lastTimeOnServer <= 5;
+        return joinedPlayer && now - joinedPlayer.lastTimeOnServer <= 5;
       });
 
       // Reduce broadcast rate to 1/s if theres less than 2 players in the room
-      if (filteredPlayers.length <= 1 && secondsSinceUpdate < 0.9) {
+      if (filteredPlayers.length <= 1 && secondsSinceBroadcast < 0.9) {
         return;
       }
 
@@ -345,23 +361,7 @@ io.on('connection', async (socket: Socket<ClientToServerEvents, ServerToClientEv
       // );
       // io.volatile.to(serverId).emit('player-positions', encodedPlayers);
 
-      // const decoded = decode(new Uint8Array(data)) as [string, string, boolean][];
-      const minimalPlayerList = players.map((p) => ({
-        SteamId: p.steamId,
-        Name: p.name,
-        isAdmin: p.isAdmin,
-      })) as ServerPlayer[];
-
-      for (const player of filteredPlayers) {
-        const playerPeer = room.joinedPlayers.find((plr) => plr.steamId === player.steamId);
-        if (playerPeer) {
-          playerPeer.lastTimeOnServer = Date.now() / 1000;
-        } else {
-          // TODO: remove them from the array to save on bandwidth
-        }
-      }
-      room.playersOnServer = minimalPlayerList;
-      room.lastUpdateFromServer = Date.now() / 1000;
+      room.lastPlayerPositionsBroadcastAt = now;
     });
 
     socket.on('current-map', (_from: string, mapName: string) => {
