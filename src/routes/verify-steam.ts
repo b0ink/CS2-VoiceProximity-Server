@@ -54,6 +54,13 @@ router.get('/verify-steam', async (req: Request, res: Response) => {
 });
 
 async function validateSteamAuth(payload: SteamOpenIDParams): Promise<boolean> {
+  if (
+    payload.return_to !== `${DOMAIN.replace(/\/+$/, '')}/verify-steam` ||
+    !payload.signed?.split(',').includes('return_to')
+  ) {
+    return false;
+  }
+
   const params = new URLSearchParams({
     'openid.ns': payload.ns!,
     'openid.op_endpoint': payload.op_endpoint!,
