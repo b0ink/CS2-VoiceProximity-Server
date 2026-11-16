@@ -256,7 +256,7 @@ io.on('connection', async (socket: Socket<ClientToServerEvents, ServerToClientEv
       const now = Date.now() / 1000;
       const players = decodePlayerData(data);
 
-      // Refresh presence even when this position snapshot won't be broadcast.
+      // Track presence on every tick, including when nobody is listening.
       room.playersOnServer = players.map((p) => ({
         SteamId: p.steamId,
         Name: p.name,
@@ -294,24 +294,6 @@ io.on('connection', async (socket: Socket<ClientToServerEvents, ServerToClientEv
           io.to(joinedPlayer.socketId).emit('player-metadata', playerMetadata);
           joinedPlayer.lastPlayerMetadataSignature = metadataSignature;
         }
-      }
-
-      const secondsSinceBroadcast = now - room.lastPlayerPositionsBroadcastAt;
-
-      if (DEBUG) {
-        // const sizeKb = Buffer.byteLength(data) / 1024;
-        // console.log(`Data size: ${sizeKb.toFixed(2)} KB`);
-        // console.log(`seconds since broadcast: ${secondsSinceBroadcast}`);
-      }
-
-      if (secondsSinceBroadcast < 0.09) {
-        // console.log('Update from server was too quick, ignoring');
-        return;
-      }
-
-      // Reduce broadcast rate to 1/s if theres less than 2 players in the room
-      if (filteredPlayers.length <= 1 && secondsSinceBroadcast < 0.9) {
-        return;
       }
 
       const playersBySteamId: Map<string, (typeof filteredPlayers)[number]> = new Map();
@@ -355,10 +337,9 @@ io.on('connection', async (socket: Socket<ClientToServerEvents, ServerToClientEv
           ),
         );
 
+        // Forward fresh poses immediately and drop snapshots if the listener's transport is busy.
         io.volatile.to(joinedPlayer.socketId).emit('player-positions', encodedPlayersForListener);
       }
-
-      room.lastPlayerPositionsBroadcastAt = now;
     });
 
     socket.on('current-map', (_from: string, mapName: string) => {

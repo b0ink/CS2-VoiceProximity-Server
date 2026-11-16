@@ -58,7 +58,6 @@ export class RoomData {
   joinedPlayers: JoinedPlayers[] = []; // active peer connections
   playersOnServer: ServerPlayer[] = []; // players actually on the cs2 server'
   lastUpdateFromServer: number;
-  lastPlayerPositionsBroadcastAt: number = 0;
   mapName?: string;
   clients: Map<string, Client>;
   serverConfig: ServerConfigData = {
