@@ -416,30 +416,53 @@ async function handleConnection(socket: Socket<ClientToServerEvents, ServerToCli
       io.to(serverId).emit('current-map', mapName);
     });
 
-    inactiveServerCheck = setInterval(() => {
-      if (room.serverSocketId && !isCurrentServer()) {
-        clearInterval(inactiveServerCheck);
-        return;
-      }
-      if (room.lastUpdateFromServer > 0 && Date.now() / 1000 - room.lastUpdateFromServer > 60) {
-        if (DEBUG) {
-          console.log('Destroying room');
+    let checkingApiKey = false;
+    inactiveServerCheck = setInterval(
+      guardSocketHandler(socket, async () => {
+        if (checkingApiKey) {
+          return;
         }
-        io.to(serverId).emit('exception', {
-          code: SocketApiErrorType.RoomShutdown,
-          message: 'You have been disconnected because the room no longer exists.',
-        });
-        io.to(serverId).disconnectSockets();
-        socket.disconnect();
-        room.joinedPlayers = [];
-        room.playersOnServer = [];
-        rooms.splice(
-          rooms.findIndex((room) => room.roomCode_ === serverId),
-          1,
-        );
-        clearInterval(inactiveServerCheck);
-      }
-    }, 1000);
+        checkingApiKey = true;
+        try {
+          // Re-read the key so deletion, expiry and renewal affect active connections.
+          const currentKey = await getApiKey(apiKey).catch(() => null);
+          if (!rooms.includes(room) || (room.serverSocketId && !isCurrentServer())) {
+            clearInterval(inactiveServerCheck);
+            return;
+          }
+          const invalidKey = !currentKey?.isActive();
+          if (
+            invalidKey ||
+            (room.lastUpdateFromServer > 0 && Date.now() / 1000 - room.lastUpdateFromServer > 60)
+          ) {
+            if (invalidKey) {
+              socket.emit('exception', {
+                code: SocketApiErrorType.InvalidApiKey,
+                message: 'Your API key has expired or been revoked.',
+              });
+            }
+            if (DEBUG) {
+              console.log('Destroying room');
+            }
+            room.serverSocketId = undefined;
+            io.to(serverId).emit('exception', {
+              code: SocketApiErrorType.RoomShutdown,
+              message: 'You have been disconnected because the room no longer exists.',
+            });
+            io.to(serverId).disconnectSockets();
+            socket.disconnect();
+            room.joinedPlayers = [];
+            room.playersOnServer = [];
+            room.clients.clear();
+            rooms.splice(rooms.indexOf(room), 1);
+            clearInterval(inactiveServerCheck);
+          }
+        } finally {
+          checkingApiKey = false;
+        }
+      }),
+      1000,
+    );
     on('disconnect', async () => {
       const durationMs = Date.now() - connectedAt;
       console.log(`Socket ${socket.id} was connected for ${durationMs} ms`);
@@ -473,6 +496,15 @@ async function handleConnection(socket: Socket<ClientToServerEvents, ServerToCli
   if (validSteamId) {
     // Don't run interval if this is a connection from cs2 server
     userOnServerCheck = setInterval(() => {
+      if (auth.payload?.exp && Date.now() / 1000 >= auth.payload.exp) {
+        clearInterval(userOnServerCheck);
+        socket.emit('exception', {
+          code: SocketApiErrorType.AuthExpired,
+          message: 'Authentication Expired',
+        });
+        socket.disconnect(true);
+        return;
+      }
       const room = rooms.find((room) => {
         const onServer = room.playersOnServer.some((p) => p.SteamId === validSteamId);
         const joinedRoom = room.joinedPlayers.some((p) => p.steamId === validSteamId);
