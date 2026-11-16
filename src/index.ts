@@ -204,16 +204,29 @@ async function handleConnection(socket: Socket<ClientToServerEvents, ServerToCli
       return;
     }
 
-    const existingRoom = rooms.find((room) => apiKeyData.id && room.apiKeyId === apiKeyData.id);
+    const serverId = `${serverAddress}:${serverPort}`;
+    let room = rooms.find((room) => room.roomCode_ === serverId);
+    if (room && room.apiKeyId !== apiKeyData.id) {
+      socket.emit('exception', {
+        code: SocketApiErrorType.InvalidApiKey,
+        message: 'This server room is already registered to another API key.',
+      });
+      socket.disconnect(true);
+      return;
+    }
+
+    const existingRoom = rooms.find(
+      (room) => apiKeyData.id && room.apiKeyId === apiKeyData.id && room.serverSocketId,
+    );
     const oldSocketId = existingRoom?.serverSocketId;
     // Close previous socket connections using the same api key
     if (existingRoom && oldSocketId) {
       console.log(`my socket id: ${socket.id} - previous socket id: ${oldSocketId}`);
       if (socket.id !== oldSocketId) {
+        existingRoom.serverSocketId = undefined;
         const oldSocket = io.sockets.sockets.get(oldSocketId);
         if (oldSocket) {
           console.log(`Destroy previous socket connection... ${oldSocketId}`);
-          existingRoom.serverSocketId = undefined;
           oldSocket.emit('exception', {
             code: SocketApiErrorType.ReusedApiKey,
             message:
@@ -223,9 +236,6 @@ async function handleConnection(socket: Socket<ClientToServerEvents, ServerToCli
         }
       }
     }
-
-    const serverId = `${serverAddress}:${serverPort}`;
-    let room = rooms.find((room) => room.roomCode_ === serverId);
 
     if (!room) {
       room = new RoomData(serverId);
@@ -239,8 +249,13 @@ async function handleConnection(socket: Socket<ClientToServerEvents, ServerToCli
     // Track the socket id of the CS2 Server
     room.serverSocketId = socket.id;
     room.apiKeyId = apiKeyData.id;
+    const isCurrentServer = () =>
+      room.serverSocketId === socket.id && room.apiKeyId === apiKeyData.id;
 
     on('server-config', (_from: string, data: Buffer<ArrayBufferLike>) => {
+      if (!isCurrentServer()) {
+        return;
+      }
       const raw = decodeSocketData(data);
       if (!hasValidConfigValues(raw)) {
         throw new Error('Invalid server config');
@@ -267,6 +282,9 @@ async function handleConnection(socket: Socket<ClientToServerEvents, ServerToCli
     });
 
     on('door-rotation', (_from: string, origin: string, rotation: number) => {
+      if (!isCurrentServer()) {
+        return;
+      }
       if (!isNonEmptyString(origin) || !Number.isFinite(rotation)) {
         throw new Error('Invalid door rotation');
       }
@@ -289,6 +307,9 @@ async function handleConnection(socket: Socket<ClientToServerEvents, ServerToCli
     });
 
     on('player-positions', (_from: string, data: Buffer<ArrayBufferLike>) => {
+      if (!isCurrentServer()) {
+        return;
+      }
       const now = Date.now() / 1000;
       const players = decodePlayerData(data);
 
@@ -379,6 +400,9 @@ async function handleConnection(socket: Socket<ClientToServerEvents, ServerToCli
     });
 
     on('current-map', (_from: string, mapName: string) => {
+      if (!isCurrentServer()) {
+        return;
+      }
       if (!isNonEmptyString(mapName)) {
         throw new Error('Invalid map name');
       }
@@ -393,6 +417,10 @@ async function handleConnection(socket: Socket<ClientToServerEvents, ServerToCli
     });
 
     inactiveServerCheck = setInterval(() => {
+      if (room.serverSocketId && !isCurrentServer()) {
+        clearInterval(inactiveServerCheck);
+        return;
+      }
       if (room.lastUpdateFromServer > 0 && Date.now() / 1000 - room.lastUpdateFromServer > 60) {
         if (DEBUG) {
           console.log('Destroying room');
