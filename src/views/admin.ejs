@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>API keys · Proximity Admin</title>
+    <link rel="stylesheet" href="/admin.css" />
+    <% if (authorised) { %>
+    <script src="/admin.js" defer></script>
+    <% } %>
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="CS2 Voice Proximity home">
+        <span class="brand-icon" aria-hidden="true">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+          >
+            <path d="M4 10v4m4-8v12m4-15v18m4-15v12m4-8v4" />
+          </svg>
+        </span>
+        <span>PROXIMITY <span class="brand-subtitle">CS2 VOICE CHAT</span></span>
+      </a>
+      <span class="admin-badge">ADMIN CONSOLE</span>
+      <a class="home-link" href="/">Back to overview <span aria-hidden="true">↗</span></a>
+    </header>
+
+    <% if (!authorised) { %>
+    <main class="access-page">
+      <div class="access-icon" aria-hidden="true">↳</div>
+      <p class="eyebrow">ADMIN ACCESS</p>
+      <h1>Sign in to continue.</h1>
+      <p>
+        Log in through the Proximity app with the configured admin Steam account, then return to
+        this page in the same browser.
+      </p>
+      <a class="button primary" href="/admin"
+        >Check access again <span aria-hidden="true">→</span></a
+      >
+      <p class="small muted">
+        Already signed in? Use the same API address and browser you used for Steam login.
+      </p>
+    </main>
+    <% } else { %>
+    <main class="dashboard">
+      <nav class="breadcrumb" aria-label="Breadcrumb">
+        <span>Administration</span><span aria-hidden="true">/</span
+        ><span aria-current="page">API keys</span>
+      </nav>
+      <div class="page-heading">
+        <div>
+          <p class="eyebrow">SERVER ACCESS</p>
+          <h1>API keys<span class="heading-dot">.</span></h1>
+          <p class="muted">Manage the keys that connect CS2 servers to Proximity.</p>
+        </div>
+        <button class="button primary" id="create-key" type="button" disabled>
+          <span aria-hidden="true">＋</span> Create API key
+        </button>
+      </div>
+
+      <div id="notice" class="notice" role="status" hidden></div>
+      <noscript><p class="notice error">Enable JavaScript to manage API keys.</p></noscript>
+
+      <section class="stats" aria-label="Key summary">
+        <div class="stat">
+          <span class="stat-label">TOTAL KEYS</span><strong id="total-count">—</strong
+          ><span class="stat-description">Across all servers</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label"><span class="dot active-dot"></span> ACTIVE</span
+          ><strong id="active-count">—</strong
+          ><span class="stat-description">Ready to authenticate</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label"><span class="dot expired-dot"></span> EXPIRED</span
+          ><strong id="expired-count">—</strong
+          ><span class="stat-description">Renew to restore access</span>
+        </div>
+      </section>
+
+      <section class="keys-panel" aria-labelledby="keys-heading">
+        <div class="panel-heading">
+          <div>
+            <h2 id="keys-heading">Server keys <span id="key-count" class="count-badge">0</span></h2>
+            <p class="muted small">One key per CS2 server.</p>
+          </div>
+          <button class="button secondary compact" id="refresh-keys" type="button">
+            <span aria-hidden="true">↻</span> Refresh
+          </button>
+        </div>
+        <div class="toolbar">
+          <label class="search-field"
+            ><svg
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.6"
+            >
+              <circle cx="10.5" cy="10.5" r="6.5" />
+              <path d="m16 16 4 4" /></svg
+            ><input
+              id="search-keys"
+              type="search"
+              placeholder="Search by label or key ID…"
+              aria-label="Search keys by label or ID"
+          /></label>
+          <label class="filter-field"
+            ><span class="sr-only">Filter by status</span
+            ><select id="status-filter">
+              <option value="all">All statuses</option>
+              <option value="active">Active</option>
+              <option value="expired">Expired</option>
+            </select></label
+          >
+        </div>
+        <div class="table-scroll" id="table-region" aria-busy="true">
+          <table>
+            <caption class="sr-only">
+              API keys with status, creation date, expiry, and recorded usage
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">LABEL / KEY</th>
+                <th scope="col">STATUS</th>
+                <th scope="col">CREATED</th>
+                <th scope="col">EXPIRES</th>
+                <th scope="col">
+                  USAGE
+                  <span
+                    title="Recorded server connection time, updated on disconnect"
+                    aria-label="Recorded server connection time, updated on disconnect"
+                    >ⓘ</span
+                  >
+                </th>
+                <th scope="col" class="actions-heading">ACTIONS</th>
+              </tr>
+            </thead>
+            <tbody id="keys-body"></tbody>
+          </table>
+        </div>
+        <div id="empty-state" class="empty-state" role="status">
+          <span class="empty-symbol" aria-hidden="true">⌁</span>
+          <h3 id="empty-title">Loading your keys…</h3>
+          <p id="empty-description">Retrieving server access keys.</p>
+          <button class="button secondary" id="empty-create-key" type="button" hidden>
+            Create your first key
+          </button>
+        </div>
+        <div class="panel-footer">
+          <span id="results-count" aria-live="polite">Loading keys…</span
+          ><span>All dates shown in your local time</span>
+        </div>
+      </section>
+      <aside class="security-note">
+        <span class="note-icon" aria-hidden="true">↳</span>
+        <div>
+          <strong>Keep your keys private.</strong>
+          <p>
+            Full keys are shown only when created. Store them securely and use a separate key for
+            each server.
+          </p>
+        </div>
+      </aside>
+      <footer class="page-footer">
+        <span>PROXIMITY <span class="muted">/ Administration</span></span
+        ><span><span class="dot active-dot"></span> Steam session authenticated</span>
+      </footer>
+    </main>
+
+    <dialog id="key-dialog" aria-labelledby="key-dialog-title">
+      <form id="key-form">
+        <div class="dialog-heading">
+          <p class="eyebrow">SERVER ACCESS</p>
+          <button
+            type="button"
+            class="icon-button"
+            data-close="key-dialog"
+            aria-label="Close key form"
+          >
+            ×
+          </button>
+        </div>
+        <h2 id="key-dialog-title">Create API key</h2>
+        <p id="key-dialog-description" class="muted">
+          Give this key a name so you can identify its server.
+        </p>
+        <label class="form-label" for="key-label">Label</label>
+        <input
+          id="key-label"
+          name="label"
+          type="text"
+          placeholder="e.g. Sydney competitive #1"
+          required
+          maxlength="100"
+          autocomplete="off"
+        />
+        <label class="form-label" for="key-expiry">Expiration</label>
+        <select id="key-expiry" name="expiry">
+          <option id="keep-expiry" value="">Keep current expiration</option>
+          <option value="7">7 days</option>
+          <option value="30">30 days</option>
+          <option value="90">90 days</option>
+          <option value="365">1 year</option>
+          <option value="custom">Custom duration</option>
+        </select>
+        <div id="custom-expiry-field" hidden>
+          <label class="form-label" for="custom-expiry">Number of days</label
+          ><input
+            id="custom-expiry"
+            type="number"
+            min="1"
+            max="36500"
+            step="1"
+            inputmode="numeric"
+            placeholder="Enter days"
+          />
+        </div>
+        <p class="field-help" id="expiry-help">Expiration starts when the key is created.</p>
+        <p id="form-error" class="form-error" role="alert" hidden></p>
+        <div class="dialog-actions">
+          <button type="button" class="button secondary" data-close="key-dialog">Cancel</button
+          ><button id="save-key" type="submit" class="button primary">Create key</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="created-dialog" aria-labelledby="created-title">
+      <div class="success-mark" aria-hidden="true">✓</div>
+      <p class="eyebrow">READY TO CONNECT</p>
+      <h2 id="created-title">Your key is ready.</h2>
+      <p class="muted">
+        Copy this key now. You won't be able to view the full key again after closing this window.
+      </p>
+      <label class="form-label" for="created-key">API key</label
+      ><input
+        id="created-key"
+        class="secret-input"
+        type="text"
+        readonly
+        spellcheck="false"
+        autocomplete="off"
+      />
+      <p id="copy-status" class="field-help" role="status">
+        Add this key to your CS2 plugin configuration.
+      </p>
+      <div class="dialog-actions">
+        <button class="button secondary" id="copy-key" type="button">Copy key</button
+        ><button class="button primary" type="button" data-close="created-dialog">
+          I've saved this key
+        </button>
+      </div>
+    </dialog>
+
+    <dialog id="delete-dialog" aria-labelledby="delete-title">
+      <div class="dialog-heading">
+        <p class="eyebrow">REMOVE ACCESS</p>
+        <button
+          type="button"
+          class="icon-button"
+          data-close="delete-dialog"
+          aria-label="Cancel deletion"
+        >
+          ×
+        </button>
+      </div>
+      <h2 id="delete-title">Delete API key?</h2>
+      <p class="muted">
+        Delete <strong id="delete-label"></strong>? This key will no longer be accepted for new
+        server connections. This cannot be undone.
+      </p>
+      <p id="delete-error" class="form-error" role="alert" hidden></p>
+      <div class="dialog-actions">
+        <button class="button secondary" type="button" data-close="delete-dialog">Keep key</button
+        ><button class="button danger" id="confirm-delete" type="button">Delete key</button>
+      </div>
+    </dialog>
+    <% } %>
+  </body>
+</html>

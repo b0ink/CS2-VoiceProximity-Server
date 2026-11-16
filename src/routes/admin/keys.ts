@@ -1,9 +1,28 @@
 import { Request, Response, Router } from 'express';
 import { ApiKey, generateApiKey, getApiKeys, loadDb } from '../../api-keys';
 import { adminRateLimit } from './middleware/adminRateLimit';
-import { verifySteamToken } from './middleware/verifySteamToken';
+import { hasAdminSession, verifySteamToken } from './middleware/verifySteamToken';
 
 const router = Router();
+
+router.use((_req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  next();
+});
+
+router.get('/', adminRateLimit, (req, res) => {
+  const authorised = hasAdminSession(req);
+  res.status(authorised ? 200 : 401).render('admin', { authorised });
+});
+
+function isValidExpiry(value: unknown): value is number {
+  return (
+    typeof value === 'number' &&
+    Number.isSafeInteger(value) &&
+    value > 0 &&
+    Date.now() + value * 1000 <= 8.64e15
+  );
+}
 
 router.get(
   '/keys',
@@ -20,17 +39,19 @@ router.post(
   adminRateLimit,
   verifySteamToken,
   async (req: Request, res: Response): Promise<void> => {
-    console.log(req.body);
-    if (!req.body || !req.body.label || !req.body.expiresIn) {
-      res.status(400).json({ error: 'Missing label or expiresIn' });
+    const label = typeof req.body?.label === 'string' ? req.body.label.trim() : '';
+    const expiresIn = req.body?.expiresIn;
+    if (!label || label.length > 100 || !isValidExpiry(expiresIn)) {
+      res.status(400).json({
+        error: 'Provide a label of 1–100 characters and a positive expiry in whole seconds.',
+      });
       return;
     }
-    const { label, expiresIn } = req.body;
 
     const db = await loadDb();
 
     if (db.data.find((key) => key.label === label)) {
-      res.status(401).json({ error: 'Key with this label already exists.' });
+      res.status(409).json({ error: 'Key with this label already exists.' });
       return;
     }
 
@@ -68,8 +89,20 @@ router.put(
   adminRateLimit,
   verifySteamToken,
   async (req: Request, res: Response): Promise<void> => {
-    if (!req.body || (!req.body.label && !req.body.expiresIn)) {
+    const hasLabel = req.body?.label !== undefined;
+    const hasExpiry = req.body?.expiresIn !== undefined;
+    if (!hasLabel && !hasExpiry) {
       res.status(400).json({ error: 'Nothing to update.' });
+      return;
+    }
+
+    const label = typeof req.body.label === 'string' ? req.body.label.trim() : '';
+    if (hasLabel && (!label || label.length > 100)) {
+      res.status(400).json({ error: 'Provide a label of 1–100 characters.' });
+      return;
+    }
+    if (hasExpiry && !isValidExpiry(req.body.expiresIn)) {
+      res.status(400).json({ error: 'Provide a positive expiry in whole seconds.' });
       return;
     }
 
@@ -80,15 +113,15 @@ router.put(
       return;
     }
 
-    if (req.body.label) {
-      if (db.data.find((key) => key.label === req.body.label)) {
-        res.status(401).json({ error: 'Key with this label already exists.' });
+    if (hasLabel) {
+      if (db.data.some((other) => other.id !== key.id && other.label === label)) {
+        res.status(409).json({ error: 'Key with this label already exists.' });
         return;
       }
 
-      key.label = req.body.label;
+      key.label = label;
     }
-    if (req.body.expiresIn) {
+    if (hasExpiry) {
       key.exp = Date.now() + req.body.expiresIn * 1000;
     }
 
