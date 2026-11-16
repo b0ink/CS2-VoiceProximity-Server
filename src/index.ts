@@ -5,7 +5,7 @@ import path from 'path';
 import { RateLimiterMemory } from 'rate-limiter-flexible';
 import semver from 'semver';
 import { Server, Socket } from 'socket.io';
-import { decode, encode } from '@msgpack/msgpack';
+import { encode } from '@msgpack/msgpack';
 import { getApiKey, loadDb } from './api-keys';
 import { authenticateToken } from './authenticateToken';
 import {
@@ -33,6 +33,14 @@ import {
 } from './shared-types';
 import { JoinedPlayers, RoomData, ServerPlayer } from './types';
 import { decodePlayerData } from './utils/decode';
+import {
+  createSocketListener,
+  decodeSocketData,
+  guardSocketHandler,
+  hasValidConfigValues,
+  isNonEmptyString,
+  isRecord,
+} from './utils/socket';
 
 const app = express();
 app.use(express.static(path.join(__dirname, '../src/public')));
@@ -99,7 +107,8 @@ const totalConnectdServers = () => {
 
 const rooms: RoomData[] = [];
 
-io.on('connection', async (socket: Socket<ClientToServerEvents, ServerToClientEvents>) => {
+async function handleConnection(socket: Socket<ClientToServerEvents, ServerToClientEvents>) {
+  const on = createSocketListener(socket);
   const ua = socket.handshake.headers['user-agent'];
 
   // const lang = socket.handshake.headers['accept-language'];
@@ -119,8 +128,25 @@ io.on('connection', async (socket: Socket<ClientToServerEvents, ServerToClientEv
   );
   let inactiveServerCheck: NodeJS.Timeout;
 
-  if (apiKey && serverAddress && serverPort && pluginVersion) {
+  if (query['api-key'] !== undefined) {
+    if (
+      !apiKey ||
+      !isNonEmptyString(serverAddress) ||
+      !isNonEmptyString(serverPort) ||
+      !isNonEmptyString(pluginVersion)
+    ) {
+      socket.emit('exception', {
+        code: SocketApiErrorType.InvalidApiKey,
+        message: 'Invalid plugin connection credentials.',
+      });
+      socket.disconnect(true);
+      return;
+    }
+
     const apiKeyData = await getApiKey(apiKey);
+    if (!socket.connected) {
+      return;
+    }
     if (!apiKeyData || !apiKeyData.isActive()) {
       const socketError: SocketApiError = {
         code: SocketApiErrorType.InvalidApiKey,
@@ -156,6 +182,7 @@ io.on('connection', async (socket: Socket<ClientToServerEvents, ServerToClientEv
         code: SocketApiErrorType.InvalidServerIp,
         message: 'Invalid IP found in socket connection',
       });
+      socket.disconnect(true);
       return;
     }
 
@@ -213,8 +240,11 @@ io.on('connection', async (socket: Socket<ClientToServerEvents, ServerToClientEv
     room.serverSocketId = socket.id;
     room.apiKeyId = apiKeyData.id;
 
-    socket.on('server-config', (_from: string, data: Buffer<ArrayBufferLike>) => {
-      const raw = decode(new Uint8Array(data)) as Record<string, unknown>;
+    on('server-config', (_from: string, data: Buffer<ArrayBufferLike>) => {
+      const raw = decodeSocketData(data);
+      if (!hasValidConfigValues(raw)) {
+        throw new Error('Invalid server config');
+      }
       const decoded: ServerConfigData = {
         deadPlayerMuteDelay: (raw.DeadPlayerMuteDelay as number | undefined) ?? 1000,
         allowDeadTeamVoice: (raw.AllowDeadTeamVoice as boolean | undefined) ?? true,
@@ -236,10 +266,16 @@ io.on('connection', async (socket: Socket<ClientToServerEvents, ServerToClientEv
       io.to(serverId).emit('server-config', data);
     });
 
-    socket.on('door-rotation', (from, origin, rotation) => {
+    on('door-rotation', (_from: string, origin: string, rotation: number) => {
+      if (!isNonEmptyString(origin) || !Number.isFinite(rotation)) {
+        throw new Error('Invalid door rotation');
+      }
       const originValues = origin.split(' ');
-      if (originValues.length !== 3 || originValues.some((v) => isNaN(Number(v)))) {
-        return;
+      if (
+        originValues.length !== 3 ||
+        originValues.some((v) => !v || !Number.isFinite(Number(v)))
+      ) {
+        throw new Error('Invalid door origin');
       }
       const absorigin = {
         x: Number(originValues[0]),
@@ -252,7 +288,7 @@ io.on('connection', async (socket: Socket<ClientToServerEvents, ServerToClientEv
       });
     });
 
-    socket.on('player-positions', (_from: string, data: Buffer<ArrayBufferLike>) => {
+    on('player-positions', (_from: string, data: Buffer<ArrayBufferLike>) => {
       const now = Date.now() / 1000;
       const players = decodePlayerData(data);
 
@@ -342,7 +378,10 @@ io.on('connection', async (socket: Socket<ClientToServerEvents, ServerToClientEv
       }
     });
 
-    socket.on('current-map', (_from: string, mapName: string) => {
+    on('current-map', (_from: string, mapName: string) => {
+      if (!isNonEmptyString(mapName)) {
+        throw new Error('Invalid map name');
+      }
       const room = rooms.find((room) => room.roomCode_ === serverId);
       if (room) {
         room.mapName = mapName;
@@ -373,7 +412,7 @@ io.on('connection', async (socket: Socket<ClientToServerEvents, ServerToClientEv
         clearInterval(inactiveServerCheck);
       }
     }, 1000);
-    socket.on('disconnect', async () => {
+    on('disconnect', async () => {
       const durationMs = Date.now() - connectedAt;
       console.log(`Socket ${socket.id} was connected for ${durationMs} ms`);
       const db = await loadDb();
@@ -384,57 +423,64 @@ io.on('connection', async (socket: Socket<ClientToServerEvents, ServerToClientEv
       }
       connectedAt = Date.now();
     });
+    return;
   }
 
   console.log(`New user connected: ${socket.id} | ${apiKey}`);
 
-  const authToken = socket.handshake.auth.token;
+  const authToken: unknown = socket.handshake.auth?.token;
+  const auth = isNonEmptyString(authToken, 8192) ? authenticateToken(authToken) : null;
+  if (!auth?.valid || !auth.payload?.steamId) {
+    socket.emit('exception', {
+      code: SocketApiErrorType.AuthExpired,
+      message: 'Authentication Expired',
+    });
+    socket.disconnect(true);
+    return;
+  }
 
-  // if (!authToken && !apiKey) {
-  //   socket.disconnect();
-  //   return;
-  // }
-
-  //
+  const authenticatedSteamId = auth.payload.steamId;
   let userOnServerCheck: NodeJS.Timeout;
-  if (authToken) {
-    const auth = authenticateToken(authToken);
-    if (!auth.valid || auth.payload === null) {
-      socket.emit('exception', {
-        code: SocketApiErrorType.AuthExpired,
-        message: 'Authentication Expired',
+  const validSteamId = auth.payload.steamId;
+  if (validSteamId) {
+    // Don't run interval if this is a connection from cs2 server
+    userOnServerCheck = setInterval(() => {
+      const room = rooms.find((room) => {
+        const onServer = room.playersOnServer.some((p) => p.SteamId === validSteamId);
+        const joinedRoom = room.joinedPlayers.some((p) => p.steamId === validSteamId);
+        return onServer && !joinedRoom;
       });
-      return;
-    }
 
-    const validSteamId = auth.payload.steamId;
-    if (validSteamId) {
-      // Don't run interval if this is a connection from cs2 server
-      userOnServerCheck = setInterval(() => {
-        const room = rooms.find((room) => {
-          const onServer = room.playersOnServer.some((p) => p.SteamId === validSteamId);
-          const joinedRoom = room.joinedPlayers.some((p) => p.steamId === validSteamId);
-          return onServer && !joinedRoom;
-        });
-
-        // SteamId is connected to the CS2 server but they havent joined the room yet
-        if (room && room.roomCode_) {
-          const secondsSinceUpdate = Date.now() / 1000 - room.lastUpdateFromServer;
-          // Ensure data is fresh before notifying the user
-          if (secondsSinceUpdate < 3) {
-            socket.emit('player-on-server', { roomCode: room.roomCode_ });
-          }
+      // SteamId is connected to the CS2 server but they havent joined the room yet
+      if (room && room.roomCode_) {
+        const secondsSinceUpdate = Date.now() / 1000 - room.lastUpdateFromServer;
+        // Ensure data is fresh before notifying the user
+        if (secondsSinceUpdate < 3) {
+          socket.emit('player-on-server', { roomCode: room.roomCode_ });
         }
-      }, 5000);
-    }
+      }
+    }, 5000);
   }
 
   // Handle joining a room
-  socket.on('join-room', async (data: JoinRoomData, callback: JoinRoomCallback) => {
+  on('join-room', async (data: JoinRoomData, callback: JoinRoomCallback) => {
+    // Socket.IO acknowledgements are optional, even when the TypeScript contract requires one.
+    if (typeof callback !== 'function') {
+      return;
+    }
+    if (
+      !isRecord(data) ||
+      !isNonEmptyString(data.token, 8192) ||
+      !isNonEmptyString(data.roomCode) ||
+      typeof data.isMuted !== 'boolean'
+    ) {
+      callback({ success: false, message: 'Invalid join request' });
+      return;
+    }
     //TODO; capacity limits on joining room
     console.log('user joining room');
 
-    const clientVersion = ua?.split('CS2VoiceProximity/')[1];
+    const clientVersion = typeof ua === 'string' ? ua.split('CS2VoiceProximity/')[1] : undefined;
     if (
       !clientVersion ||
       !semver.satisfies(clientVersion, `>=${MINIMUM_CLIENT_VERSION}`, { includePrerelease: true })
@@ -448,7 +494,7 @@ io.on('connection', async (socket: Socket<ClientToServerEvents, ServerToClientEv
 
     const auth = authenticateToken(data.token);
     const validSteamId = auth.payload?.steamId;
-    if (!auth.valid || auth.payload === null || !validSteamId) {
+    if (!auth.valid || auth.payload === null || validSteamId !== authenticatedSteamId) {
       socket.emit('exception', {
         code: SocketApiErrorType.AuthExpired,
         message: 'Authentication Expired',
@@ -571,7 +617,14 @@ io.on('connection', async (socket: Socket<ClientToServerEvents, ServerToClientEv
       socket.broadcast.to(data.roomCode).emit('user-joined', socket.id, _client);
     }
 
-    socket.on('mute-player', async (data) => {
+    on('mute-player', async (data: { targetSteamId: string; clientToken: string }) => {
+      if (
+        !isRecord(data) ||
+        !isNonEmptyString(data.clientToken, 8192) ||
+        !isNonEmptyString(data.targetSteamId)
+      ) {
+        throw new Error('Invalid mute request');
+      }
       const auth = authenticateToken(data.clientToken);
       const steamid = auth.payload?.steamId;
       if (!auth.valid || !steamid) {
@@ -602,7 +655,14 @@ io.on('connection', async (socket: Socket<ClientToServerEvents, ServerToClientEv
       }
     });
 
-    socket.on('update-config', async (data) => {
+    on('update-config', async (data: { config: ServerConfigData; clientToken: string }) => {
+      if (
+        !isRecord(data) ||
+        !isNonEmptyString(data.clientToken, 8192) ||
+        !hasValidConfigValues(data.config)
+      ) {
+        throw new Error('Invalid config request');
+      }
       const auth = authenticateToken(data.clientToken);
       const steamid = auth.payload?.steamId;
       if (!auth.valid || !steamid) {
@@ -657,7 +717,10 @@ io.on('connection', async (socket: Socket<ClientToServerEvents, ServerToClientEv
     });
 
     // Handle signaling (peer-to-peer connectio+ns)
-    socket.on('signal', (signal: Signal) => {
+    on('signal', (signal: Signal) => {
+      if (!isRecord(signal) || !isNonEmptyString(signal.to) || !isRecord(signal.data)) {
+        throw new Error('Invalid signal');
+      }
       const { to, data: signalData } = signal;
       const client = room.clients.get(socket.id);
       if (!client || !room.clients.has(to)) {
@@ -675,7 +738,10 @@ io.on('connection', async (socket: Socket<ClientToServerEvents, ServerToClientEv
       });
     });
 
-    socket.on('microphone-state', (state: { isMuted: boolean }) => {
+    on('microphone-state', (state: { isMuted: boolean }) => {
+      if (!isRecord(state) || typeof state.isMuted !== 'boolean') {
+        throw new Error('Invalid microphone state');
+      }
       const client = room.clients.get(socket.id);
       if (client) {
         client.isMuted = state.isMuted;
@@ -690,7 +756,7 @@ io.on('connection', async (socket: Socket<ClientToServerEvents, ServerToClientEv
     //TODO: handle a manual 'leave' event, removing their data from their joined room
 
     // Handle user disconnection
-    socket.on('disconnect', () => {
+    on('disconnect', () => {
       //TODO: remove them from the joinedPLayers array
       // Evict player object
 
@@ -713,6 +779,10 @@ io.on('connection', async (socket: Socket<ClientToServerEvents, ServerToClientEv
       socket.leave(data.roomCode); // Remove user from the room when they disconnect
     });
   });
+}
+
+io.on('connection', (socket) => {
+  void guardSocketHandler(socket, handleConnection)(socket);
 });
 
 server.listen(PORT, () => {

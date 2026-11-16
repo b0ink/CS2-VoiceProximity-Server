@@ -1,5 +1,5 @@
-import { decode } from '@msgpack/msgpack';
 import { PlayerPositionApiData } from '../types';
+import { decodeSocketData, isNonEmptyString, isRecord } from './socket';
 
 type OcclusionFractionWire = Record<string, number> | Map<string, number>;
 type PackedPlayerData = [
@@ -19,7 +19,25 @@ type PackedPlayerData = [
 ];
 
 export function decodePlayerData(data: Buffer<ArrayBufferLike>): PlayerPositionApiData[] {
-  const decoded = decode(new Uint8Array(data));
+  const decoded = decodeSocketData(data);
+  if (!Array.isArray(decoded)) {
+    throw new Error('Invalid player positions');
+  }
+  for (const player of decoded) {
+    if (
+      !Array.isArray(player) ||
+      player.length < 12 ||
+      player.length > 13 ||
+      !isNonEmptyString(player[0], 32) ||
+      typeof player[1] !== 'string' ||
+      (player[2] !== null && typeof player[2] !== 'boolean') ||
+      !player.slice(3, 10).every((value) => typeof value === 'number' && Number.isFinite(value)) ||
+      typeof player[10] !== 'boolean' ||
+      typeof player[11] !== 'boolean'
+    ) {
+      throw new Error('Invalid player position entry');
+    }
+  }
   const players = decoded as PackedPlayerData[];
 
   const localPlayerData: PlayerPositionApiData[] = [];
@@ -32,7 +50,7 @@ export function decodePlayerData(data: Buffer<ArrayBufferLike>): PlayerPositionA
     const playerData: PlayerPositionApiData = {
       steamId,
       name,
-      isAdmin,
+      isAdmin: isAdmin ?? false,
       originX: ox,
       originY: oy,
       originZ: oz,
@@ -56,19 +74,24 @@ function decodeOcclusionFraction(value: OcclusionFractionWire | undefined): Reco
   }
 
   const output: Record<string, number> = {};
+  if (!isRecord(value) && !(value instanceof Map)) {
+    throw new Error('Invalid occlusion data');
+  }
   if (value instanceof Map) {
     for (const [k, v] of value.entries()) {
-      if (typeof k === 'string' && typeof v === 'number') {
-        output[k] = v;
+      if (typeof k !== 'string' || typeof v !== 'number' || !Number.isFinite(v)) {
+        throw new Error('Invalid occlusion entry');
       }
+      output[k] = v;
     }
     return output;
   }
 
   for (const [k, v] of Object.entries(value)) {
-    if (typeof v === 'number') {
-      output[k] = v;
+    if (typeof v !== 'number' || !Number.isFinite(v)) {
+      throw new Error('Invalid occlusion entry');
     }
+    output[k] = v;
   }
 
   return output;
